@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+obj/
+bin/
+DesignTimeBuild/
+.vb2
+.suo
