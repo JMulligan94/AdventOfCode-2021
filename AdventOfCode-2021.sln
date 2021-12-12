@@ -23,7 +23,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "09-SmokeBasin", "09-SmokeBa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "10-SyntaxScoring", "10-SyntaxScoring\10-SyntaxScoring.csproj", "{CED7724F-FFBD-4CAA-B2D5-017178F5EB60}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "11-DumboOctopus", "11-DumboOctopus\11-DumboOctopus.csproj", "{9A13E6CF-0BCB-43AD-835A-1841FDC8EF3C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "11-DumboOctopus", "11-DumboOctopus\11-DumboOctopus.csproj", "{9A13E6CF-0BCB-43AD-835A-1841FDC8EF3C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "12-PassagePathing", "12-PassagePathing\12-PassagePathing.csproj", "{40D7E0A2-D618-4850-9DBF-34EDB2290B58}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -75,6 +77,10 @@ Global
 		{9A13E6CF-0BCB-43AD-835A-1841FDC8EF3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9A13E6CF-0BCB-43AD-835A-1841FDC8EF3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9A13E6CF-0BCB-43AD-835A-1841FDC8EF3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{40D7E0A2-D618-4850-9DBF-34EDB2290B58}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40D7E0A2-D618-4850-9DBF-34EDB2290B58}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40D7E0A2-D618-4850-9DBF-34EDB2290B58}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40D7E0A2-D618-4850-9DBF-34EDB2290B58}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
