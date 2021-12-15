@@ -29,6 +29,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "12-PassagePathing", "12-Pas
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "13-TransparentOrigami", "13-TransparentOrigami\13-TransparentOrigami.csproj", "{254A9331-0E5B-4EA0-9636-E6C8C3C58673}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "14-ExtendedPolymerization", "14-ExtendedPolymerization\14-ExtendedPolymerization.csproj", "{5151C050-709D-47C9-9319-1035DE295472}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "15-Chiton", "15-Chiton\15-Chiton.csproj", "{CD896AA9-8A47-4A5E-AEFD-B6898B419A0D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +91,14 @@ Global
 		{254A9331-0E5B-4EA0-9636-E6C8C3C58673}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{254A9331-0E5B-4EA0-9636-E6C8C3C58673}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{254A9331-0E5B-4EA0-9636-E6C8C3C58673}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5151C050-709D-47C9-9319-1035DE295472}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5151C050-709D-47C9-9319-1035DE295472}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5151C050-709D-47C9-9319-1035DE295472}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5151C050-709D-47C9-9319-1035DE295472}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CD896AA9-8A47-4A5E-AEFD-B6898B419A0D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD896AA9-8A47-4A5E-AEFD-B6898B419A0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD896AA9-8A47-4A5E-AEFD-B6898B419A0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD896AA9-8A47-4A5E-AEFD-B6898B419A0D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

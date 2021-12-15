@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <RootNamespace>_14_ExtendedPolymerization</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="input.txt" />
+    <None Remove="test.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="input.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="test.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
