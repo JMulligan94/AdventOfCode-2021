@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <RootNamespace>_19_BeaconScanner</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="input.txt" />
+    <None Remove="testA.txt" />
+    <None Remove="testB.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="input.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="testB.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="testA.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
