@@ -37,13 +37,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "16-PacketDecoder", "16-Pack
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "17-TrickShot", "17-TrickShot\17-TrickShot.csproj", "{258AFD19-7B08-4A9F-BF64-96F0EA0A5820}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "18-Snailfish", "18-Snailfish\18-Snailfish.csproj", "{5B32ECFB-2D36-4580-8EB6-4BB24B13C3D7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "18-Snailfish", "18-Snailfish\18-Snailfish.csproj", "{5B32ECFB-2D36-4580-8EB6-4BB24B13C3D7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "19-BeaconScanner", "19-BeaconScanner\19-BeaconScanner.csproj", "{93A19440-5357-4A7E-A955-70748E15E05A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "19-BeaconScanner", "19-BeaconScanner\19-BeaconScanner.csproj", "{93A19440-5357-4A7E-A955-70748E15E05A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "20-TrenchMap", "20-TrenchMap\20-TrenchMap.csproj", "{769F0447-085B-4E9E-A1BC-9ADD9EF927A8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "20-TrenchMap", "20-TrenchMap\20-TrenchMap.csproj", "{769F0447-085B-4E9E-A1BC-9ADD9EF927A8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "21-DiracDice", "21-DiracDice\21-DiracDice.csproj", "{8170590B-2409-4C8E-8A55-6950BA9B9417}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "21-DiracDice", "21-DiracDice\21-DiracDice.csproj", "{8170590B-2409-4C8E-8A55-6950BA9B9417}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "22-ReactorReboot", "22-ReactorReboot\22-ReactorReboot.csproj", "{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -135,6 +137,10 @@ Global
 		{8170590B-2409-4C8E-8A55-6950BA9B9417}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8170590B-2409-4C8E-8A55-6950BA9B9417}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8170590B-2409-4C8E-8A55-6950BA9B9417}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
