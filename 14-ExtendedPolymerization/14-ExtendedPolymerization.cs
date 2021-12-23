@@ -6,48 +6,15 @@ namespace _14_ExtendedPolymerization
 {
 	class Program
 	{
-		static string PerformStep(string template, ref char[,] rules)
+		// Returns the difference between the highest and lowest count in charCounts
+		static UInt64 GetQuantityRange(ref UInt64[] charCounts)
 		{
-			string newTemplate = template;
-
-			List<Tuple<int, char>> toInsert = new List<Tuple<int, char>>();
-			for(int i = 0; i < template.Length-1; ++i)
-			{
-				char thisChar = template[i];
-				char nextChar = template[i+1];
-				char insertionChar = rules[thisChar - 'A', nextChar - 'A'];
-				if (insertionChar != 0)
-				{
-					toInsert.Add(new Tuple<int, char>(i+1, insertionChar));
-				}
-			}
-
-			// Iterate backwards and insert new chars (since it is done simultaneously)
-			for (int i = toInsert.Count - 1; i >= 0; --i)
-			{
-				int insertIndex = toInsert[i].Item1;
-				string insertChar = toInsert[i].Item2 + "";
-
-				newTemplate = newTemplate.Insert(insertIndex, insertChar);
-				//Console.WriteLine("\tInserted " + insertChar + " at " + insertIndex);
-			}
-
-			return newTemplate;
-		}
-
-		static UInt64 GetQuantityRange(string template)
-		{
-			UInt64[] charCounts = new UInt64[26];
-			foreach (var character in template)
-			{
-				charCounts[character - 'A']++;
-			}
-
 			UInt64 highestCount = UInt64.MinValue;
 			int highestIndex = 0;
 			UInt64 lowestCount = UInt64.MaxValue;
 			int lowestIndex = 0;
 
+			// Iterate each char count to determine which is highest or lowest
 			for (int countIndex = 0; countIndex < charCounts.Length; ++countIndex)
 			{
 				UInt64 count = charCounts[countIndex];
@@ -74,62 +41,98 @@ namespace _14_ExtendedPolymerization
 			return highestCount - lowestCount;
 		}
 
+		private static UInt64 PerformSteps(int numSteps, ref Dictionary<string, UInt64> pairCounts, ref Dictionary<string, Tuple<string, string>> pairsCreated, ref UInt64[] charCounts)
+		{
+			// Create dictionary to use for simultaneously altering pair count between each step
+			Dictionary<string, UInt64> pairsToCreate = new Dictionary<string, UInt64>(pairCounts);
+			for (int stepIndex = 0; stepIndex < numSteps; ++stepIndex)
+			{
+				// Null all values for counts to 0 for this step
+				foreach (var pairToNull in pairsToCreate)
+				{
+					pairsToCreate[pairToNull.Key] = 0;
+				}
+
+				// For each step, run through the pairs we have and add to the pairs we will create from them
+				foreach (var pair in pairCounts)
+				{
+					if (pair.Value == 0)
+						continue;
+
+					var childPairs = pairsCreated[pair.Key];
+					pairsToCreate[childPairs.Item1] += pair.Value;
+					pairsToCreate[childPairs.Item2] += pair.Value;
+
+					// Add to char counts array for the newly created letter
+					charCounts[childPairs.Item1[1] - 'A'] += pair.Value;
+				}
+
+				// Set new pair counts that were created this step - allows it to work simultaneously
+				pairCounts = new Dictionary<string, UInt64>(pairsToCreate);
+			}
+
+			// Get the difference between most common char and least common
+			return GetQuantityRange(ref charCounts);
+		}
+
 		static void Main(string[] args)
 		{
-			var lines = File.ReadAllLines("test.txt");
+			var lines = File.ReadAllLines("input.txt");
 
+			// Parse from file to dictionary of which pairs create which chars
 			string initialTemplate = lines[0];
 			List<Tuple<string, string>> stringInsertionRules = new List<Tuple<string, string>>();
-
 			for (int lineIndex = 2; lineIndex < lines.Length; ++lineIndex)
 			{
 				var ruleTokens = lines[lineIndex].Split(' ');
 				stringInsertionRules.Add(new Tuple<string, string>(ruleTokens[0], ruleTokens[2]));
 			}
 
-			char[,] insertionRules = new char[26, 26];
+			// Map of the amount of pairs currently in the template
+			Dictionary<string, UInt64> pairCounts = new Dictionary<string, UInt64>();
 
+			// Map of pairs to the pairs they create
+			Dictionary<string, Tuple<string, string>> pairsCreated = new Dictionary<string, Tuple<string, string>>();
+
+			// Create key set for dictionary which tracks number of each pair created
+			// Also cache which pairs create which other pairs at this time
 			foreach (var rule in stringInsertionRules)
 			{
-				int row = (rule.Item1[0] - 'A');
-				int col = (rule.Item1[1] - 'A');
-				insertionRules[row, col] = rule.Item2[0];
+				pairCounts.Add(rule.Item1, 0);
+				pairsCreated.Add(rule.Item1, new Tuple<string, string>(rule.Item1[0] + rule.Item2, rule.Item2 + rule.Item1[1]));
 			}
 
-			string template = initialTemplate;
-			Console.WriteLine("Template:\t\t" + template);
+			// Keep track of amount of times a char appears in the template
+			UInt64[] charCounts = new UInt64[26];
 
-			// Perform 10 steps
-			for (int i = 0; i < 10; ++i)
+			// Get initial values for amount of characters and amount of each pair type
+			for (int i = 0; i < initialTemplate.Length; ++i)
 			{
-				template = PerformStep(template, ref insertionRules);
-				//Console.WriteLine("Completed step " + i);
-				Console.WriteLine("After step " + i + ":\t\t" + template);
+				charCounts[initialTemplate[i] - 'A']++;
+
+				if (i < initialTemplate.Length - 1)
+				{
+					string pair = "" + initialTemplate[i] + initialTemplate[i + 1];
+					pairCounts[pair] = pairCounts[pair] + 1;
+				}
 			}
 
 			// Part One
 			{
 				Console.WriteLine("\nPart One:");
 
-				// Get the difference between most common char and least common
-				UInt64 quantityDiff = GetQuantityRange(template);
+				// Perform 10 steps
+				UInt64 quantityDiff = PerformSteps(10, ref pairCounts, ref pairsCreated, ref charCounts); 
 				Console.WriteLine("Quantity difference after 10 steps is: " + quantityDiff + "\n");
 			}
 
-			// Perform 30 more steps - 40 total
-			for (int i = 10; i < 40; ++i)
-			{
-				template = PerformStep(template, ref insertionRules);
-				Console.WriteLine("Completed step " + i);
-				//Console.WriteLine("After step " + i + ":\t\t" + template);
-			}
 
 			// Part Two
 			{
 				Console.WriteLine("\nPart Two:");
 
-				// Get the difference between most common char and least common
-				UInt64 quantityDiff = GetQuantityRange(template);
+				// Perform another 30 steps
+				UInt64 quantityDiff = PerformSteps(30, ref pairCounts, ref pairsCreated, ref charCounts);
 				Console.WriteLine("Quantity difference after 40 steps is: " + quantityDiff + "\n");
 			}
 		}
