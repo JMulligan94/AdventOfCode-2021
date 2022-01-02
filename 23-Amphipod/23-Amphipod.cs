@@ -1,473 +1,451 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace _23_Amphipod
 {
-	enum RoomSpace
-	{
-		None,
-		Top,
-		Bottom,
-		Hallway
-	}
-
-	class Amphipod
-	{
-		public int roomNum;
-		public RoomSpace space;
-		public char type;
-
-		public int hallWayIndex;
-
-		public Amphipod(int _roomNum, RoomSpace _space, char _type)
-		{
-			roomNum = _roomNum;
-			space = _space;
-			type = _type;
-
-			hallWayIndex = -1; // Not in hallway so -1
-		}
-
-		public override string ToString()
-		{
-			return type + " - " + ((space == RoomSpace.Top) ? "Top" : (space == RoomSpace.Bottom ? "Bottom" : "Hallway"));
-		}
-	}
-
-	class Room
-	{
-		public char roomType;
-
-		public char bottomSpace;
-		public char topSpace;
-
-		public bool bottomLocked;
-		public bool topLocked;
-
-		public int roomToHallwayLoc;
-
-		static Dictionary<char, UInt64> s_typeCosts = new Dictionary<char, UInt64>() { { 'A', 1 }, { 'B', 10 }, { 'C', 100 }, { 'D', 1000 } };
-
-		public Room(int _roomIndex, char _bottom, char _top, int _hallwayLoc)
-		{
-			roomType = (char)('A' + _roomIndex);
-
-			bottomSpace = _bottom;
-			if (bottomSpace == roomType)
-				bottomLocked = true;
-
-			topSpace = _top;
-			if (bottomLocked && topSpace == roomType)
-				topLocked = true;
-
-			roomToHallwayLoc = _hallwayLoc;
-		}
-
-		public bool AddToRoom(char amphipodType, ref int spacesMoved)
-		{
-			if (bottomSpace != '.' && topSpace != '.')
-				return false;
-
-			if (amphipodType != roomType)
-				return false;
-
-			if (bottomLocked)
-			{
-				topSpace = amphipodType;
-				topLocked = true;
-				spacesMoved++;
-			}
-			else
-			{
-				bottomSpace = amphipodType;
-				bottomLocked = true;
-				spacesMoved += 2;
-			}
-			return true;
-		}
-
-		public RoomSpace GetFirstSpaceInRoom()
-		{
-			if (bottomSpace == '.')
-				return RoomSpace.Bottom;
-
-			if (topSpace == '.')
-				return RoomSpace.Top;
-
-			return RoomSpace.None;
-		}
-
-		public bool GetFirstUnlockedAmphipod(out char type, out RoomSpace space)
-		{
-			type = '.';
-			space = RoomSpace.None;
-
-			// Room is locked - no available amphipods to use
-			if (IsLocked())
-				return false;
-
-			if (!topLocked && topSpace != '.')
-			{
-				type = topSpace;
-				space = RoomSpace.Top;
-				return true;
-			}
-			else if (!bottomLocked && bottomSpace != '.')
-			{
-				type = bottomSpace;
-				space = RoomSpace.Bottom;
-				return true;
-			}
-			return false;
-		}
-
-		public bool IsLocked()
-		{
-			// Both spaces are filled with correct amphipods, room is now locked
-			return topLocked;
-		}
-
-		public static UInt64 GetMovementCost(char typeToMove, int spacesMoved)
-		{
-			return s_typeCosts[typeToMove] * (UInt64)spacesMoved;
-		}
-
-		public override string ToString()
-		{
-			return roomToHallwayLoc + ":" + topSpace + bottomSpace;
-		}
-	}
-
 	class Program
 	{
-		static void MoveFromRoomToRoom(ref Room from, ref Room to, ref UInt64 energyCost)
+		// A class for storing the state of the room/hallway configuration
+		class State
 		{
-			int spacesMoved = 0;
-			char typeToMove = '.';
-			RoomSpace spaceToMoveFrom = RoomSpace.None;
-			if (from.GetFirstUnlockedAmphipod(out typeToMove, out spaceToMoveFrom))
+			public string hallway;
+			public List<string> rooms;
+			public UInt64 energyCostSoFar;
+			public State from;
+			public List<State> to;
+
+			public static int[] s_roomToHallwayIndices = new int[] { 2, 4, 6, 8 };
+			public static int[] s_validHallwayIndices = new int[] { 0, 1, 3, 5, 7, 9, 10 }; // Amphipods can't stop outside of a room
+			public static int[] s_typeCosts = new int[] { 1, 10, 100, 1000 };
+
+			public State()
 			{
-				to.AddToRoom(typeToMove, ref spacesMoved);
-				spacesMoved += Math.Abs(from.roomToHallwayLoc - to.roomToHallwayLoc);
-				if (spaceToMoveFrom == RoomSpace.Top)
-				{
-					spacesMoved++;
-					from.topSpace = '.';
-				}
-				else
-				{
-					spacesMoved += 2;
-					from.bottomSpace = '.';
-				}
-				energyCost += Room.GetMovementCost(typeToMove, spacesMoved);
+				hallway = "";
+				rooms = new List<string>();
+				energyCostSoFar = 0;
+
+				from = null;
+				to = new List<State>();
 			}
-		}
 
-		static void MoveFromHallwayToRoom(int hallwayIndex, ref Room to, ref char[] hallway, ref UInt64 energyCost)
-		{
-			int spacesMoved = 0;
-			char typeToMove = hallway[hallwayIndex];
-			spacesMoved += Math.Abs(hallwayIndex - to.roomToHallwayLoc);
-			to.AddToRoom(typeToMove, ref spacesMoved);
-			hallway[hallwayIndex] = '.';
-			energyCost += Room.GetMovementCost(typeToMove, spacesMoved);
-		}
-
-		static bool MoveFromRoomToHallway(ref Room from, int hallwayIndex, ref char[] hallway, ref UInt64 energyCost)
-		{
-			if (hallway[hallwayIndex] != '.')
-				return false;
-
-			int spacesMoved = 0;
-			char typeToMove = '.';
-			RoomSpace spaceToMoveFrom = RoomSpace.None;
-			if (from.GetFirstUnlockedAmphipod(out typeToMove, out spaceToMoveFrom))
+			public State(State other)
 			{
-				hallway[hallwayIndex] = typeToMove;
-				spacesMoved += Math.Abs(hallwayIndex - from.roomToHallwayLoc);
-				if (spaceToMoveFrom == RoomSpace.Top)
+				other.to.Add(this);
+				hallway = other.hallway;
+				rooms = new List<string>(other.rooms);
+				energyCostSoFar = other.energyCostSoFar;
+
+				from = other;
+				to = new List<State>();
+			}
+
+			// Outputs in format:
+			//   "<Hallway>,[<Room 0>][<Room 1>][<Room 2>][<Room 3>],Energy"
+			public override string ToString()
+			{
+				string output = "";
+				for (int i = 0; i < hallway.Length; ++i)
 				{
-					from.topSpace = '.';
-					spacesMoved++;
+					output += hallway[i];
 				}
-				else
+				output += ',';
+
+				for (int i = 0; i < rooms.Count; ++i)
 				{
-					from.bottomSpace = '.';
-					spacesMoved += 2;
+					output += '[';
+					output += rooms[i];
+					output += ']';
 				}
-				energyCost += Room.GetMovementCost(typeToMove, spacesMoved);
+
+				output += ",";
+				output += energyCostSoFar.ToString();
+				return output;
+			}
+
+			public string GetUniqueString()
+			{
+				return hallway + GetRoomsString();
+			}
+
+			public string GetRoomsString()
+			{
+				string roomStr = "";
+				for (int i = 0; i < rooms.Count; ++i)
+					roomStr += rooms[i];
+
+				return roomStr;
+			}
+
+			public int GetFirstSpaceIndex(int roomIndex)
+			{
+				for (int i = rooms[roomIndex].Length - 1; i >= 0; --i)
+				{
+					if (rooms[roomIndex][i] == '.')
+						return i;
+				}
+				return -1;
+			}
+
+			public int GetTopAmphipodIndex(int roomIndex)
+			{
+				for (int i = 0; i < rooms[roomIndex].Length; ++i)
+				{
+					if (rooms[roomIndex][i] != '.')
+						return i;
+				}
+				return -1;
+			}
+
+			public void AddToRoom(int roomIndex, char type, ref int spacesMoved)
+			{
+				int indexToAddTo = GetFirstSpaceIndex(roomIndex);
+				if (indexToAddTo >= 0)
+				{
+					rooms[roomIndex] = rooms[roomIndex].Remove(indexToAddTo, 1).Insert(indexToAddTo, type + "");
+
+					spacesMoved += indexToAddTo + 1;
+				}
+			}
+
+			public char PopFromRoom(int roomIndex, ref int spacesMoved)
+			{
+				char poppedType = '.';
+
+				int indexToPopFrom = GetTopAmphipodIndex(roomIndex);
+				if (indexToPopFrom >= 0)
+				{
+					poppedType = rooms[roomIndex][indexToPopFrom];
+					rooms[roomIndex] = rooms[roomIndex].Remove(indexToPopFrom, 1).Insert(indexToPopFrom, ".");
+					spacesMoved += indexToPopFrom + 1;
+				}
+				return poppedType;
+			}
+
+			public void AddToHallway(int hallwayIndex, char type)
+			{
+				if (hallway[hallwayIndex] == '.')
+				{
+					hallway = hallway.Remove(hallwayIndex, 1).Insert(hallwayIndex, type + "");
+				}
+			}
+			public char RemoveFromHallway(int hallwayIndex)
+			{
+				char removedType = hallway[hallwayIndex];
+				if (hallway[hallwayIndex] != '.')
+					hallway = hallway.Remove(hallwayIndex, 1).Insert(hallwayIndex, ".");
+				return removedType;
+			}
+
+			public void IncrementEnergy(int spacesMoved, char typeMoved)
+			{
+				energyCostSoFar += (UInt64)spacesMoved * (UInt64)s_typeCosts[typeMoved - 'A'];
+			}
+
+			public bool RoomCanAccept(int roomIndex, char type)
+			{
+				// Wrong room for this type
+				if (type - 'A' != roomIndex)
+					return false;
+
+				// Otherwise, the room needs to have a free space
+				//  and all other amphipods in there must be the correct type
+				bool roomHasSpace = false;
+				bool roomHasWrongAmphipod = false;
+				for (int i = 0; i < rooms[roomIndex].Length; ++i)
+				{
+					if (rooms[roomIndex][i] == '.')
+						roomHasSpace = true;
+					else if (rooms[roomIndex][i] != type)
+						roomHasWrongAmphipod = true;
+				}
+
+				return roomHasSpace && !roomHasWrongAmphipod;
+			}
+
+			public bool IsHallwayClear(int startIndex, int endIndex)
+			{
+				int minRange = Math.Min(startIndex, endIndex);
+				int maxRange = Math.Max(startIndex, endIndex);
+
+				for (int i = 0; i < s_validHallwayIndices.Length; ++i)
+				{
+					// Out of range
+					if (s_validHallwayIndices[i] <= minRange || s_validHallwayIndices[i] >= maxRange)
+						continue;
+
+					if (hallway[s_validHallwayIndices[i]] != '.')
+						return false;
+				}
 				return true;
 			}
-			return false;
+
+			public bool IsFinished()
+			{
+				return GetRoomsString() == "AABBCCDD"
+					|| GetRoomsString() == "AAAABBBBCCCCDDDD";
+			}
+
+			public void PrintPathToState()
+			{
+				Stack<State> stateStack = new Stack<State>();
+				stateStack.Push(this);
+				State currentState = this;
+				while (currentState.from != null)
+				{
+					stateStack.Push(currentState.from);
+					currentState = currentState.from;
+				}
+
+				int i = 0;
+				while (stateStack.Count > 0)
+				{
+					Console.WriteLine(i + ":\t" + stateStack.Pop());
+					i++;
+				}
+			}
 		}
 
-		static bool RearrangementComplete(ref Room[] rooms)
+		static State SolveAmphipods(string inputFile)
 		{
-			bool complete = true;
-			foreach(var room in rooms)
-			{
-				complete &= room.IsLocked();
-			}
-			return complete;
-		}
-
-		static void PrintLayout(ref char[] hallway, ref Room[] rooms)
-		{
-			Console.WriteLine("===============================");
-
-			// Top wall
-			for (int i = 0; i < hallway.Length + 2; ++i)
-				Console.Write("# ");
-			Console.Write('\n');
-
-			// Hallway
-			Console.Write("# ");
-			for (int i = 0; i < hallway.Length; ++i)
-				Console.Write(hallway[i] + " ");
-			Console.Write("#\n");
-
-			// Top room
-			Console.Write("# # #");
-			foreach(var room in rooms)
-			{
-				if (room.topLocked)
-				{
-					Console.Write("[" + room.topSpace + "]#");
-				}
-				else
-				{
-					Console.Write(" " + room.topSpace + " #");
-				}
-			}
-			Console.Write(" # #\n");
-
-			// Bottom room
-			Console.Write("    #");
-			foreach (var room in rooms)
-			{
-				if (room.bottomLocked)
-				{
-					Console.Write("[" + room.bottomSpace + "]#");
-				}
-				else
-				{
-					Console.Write(" " + room.bottomSpace + " #");
-				}
-			}
-			Console.Write("\n");
-
-			// Bottom wall
-			Console.Write("    # ");
-			foreach (var room in rooms)
-			{
-				Console.Write("# # ");
-			}
-			Console.Write("\n");
-
-			Console.WriteLine("===============================");
-		}
-
-		static void Main(string[] args)
-		{
-			var lines = File.ReadAllLines("input.txt");
+			var lines = File.ReadAllLines(inputFile);
 
 			// Parse input into Room information
 			var hallwayLine = lines[1].Trim('#');
 
-			char[] hallway = new char[hallwayLine.Length];
-			
-			for (int i = 0; i < hallway.Length; ++i)
-				hallway[i] = '.';
+			State initialState = new State();
+			for (int i = 0; i < hallwayLine.Length; ++i)
+				initialState.hallway += '.';
 
 			var topRoomsLine = lines[2].Substring(1, lines[2].Length - 2);
-
-			var bottomRoomsLine = lines[3].Trim(' ').Trim('#');
-			var bottomRooms = bottomRoomsLine.Split('#');
-
-			Room[] rooms = new Room[bottomRooms.Length];
-			Amphipod[,] amphipods = new Amphipod[4, 2];
-
-			int roomIndex = 0;
-			for (int i = 0; i < topRoomsLine.Length; ++i)
+			var topRooms = topRoomsLine.Split('#');
+			for (int i = 0; i < topRooms.Length; ++i)
 			{
-				if (topRoomsLine[i] != '#')
+				if (topRooms[i] != "")
+					initialState.rooms.Add(topRooms[i]);
+			}
+
+			for (int lineIndex = 3; lineIndex < lines.Length - 1; ++lineIndex)
+			{
+				var lowerRoomsLine = lines[lineIndex].Trim(' ').Trim('#');
+				var lowerRooms = lowerRoomsLine.Split('#');
+
+				for (int i = 0; i < lowerRooms.Length; ++i)
 				{
-					char bottom = bottomRooms[roomIndex][0];
-					if (amphipods[bottom - 'A', 0] == null)
-						amphipods[bottom - 'A', 0] = new Amphipod(roomIndex, RoomSpace.Top, bottom);
-					else
-						amphipods[bottom - 'A', 1] = new Amphipod(roomIndex, RoomSpace.Top, bottom);
-
-					char top = topRoomsLine[i];
-					if (amphipods[top - 'A', 0] == null)
-						amphipods[top - 'A', 0] = new Amphipod(roomIndex, RoomSpace.Bottom, top);
-					else
-						amphipods[top - 'A', 1] = new Amphipod(roomIndex, RoomSpace.Bottom, top);
-
-					rooms[roomIndex] = new Room(roomIndex, bottom, top, i);
-					roomIndex++;
+					if (lowerRooms[i] != "")
+						initialState.rooms[i] += lowerRooms[i];
 				}
 			}
 
 			Console.WriteLine("Starting config:");
-			PrintLayout(ref hallway, ref rooms);
+			Console.WriteLine(initialState);
 
-			UInt64 energyCost = 0;
+			UInt64 lowestCost = UInt64.MaxValue;
+			State lowestCostState = null;
 
-			// Energy spent per step:
-			// A = 1, B = 10, C = 100, D = 1000
-			while (!RearrangementComplete(ref rooms))
+			Queue<State> statesToCheck = new Queue<State>();
+			statesToCheck.Enqueue(initialState);
+			Dictionary<string, State> visitedStates = new Dictionary<string, State>();
+			List<State> finishedStates = new List<State>();
+			while (statesToCheck.Count > 0)
 			{
-				bool hasMoved = false;
+				State currentState = statesToCheck.Dequeue();
+				string currentStateString = currentState.GetUniqueString();
 
-				// Are any hallway amphipods blocked by a single other amphipod in their dest room?
-				// If so, move that one out of the way
-				for (int i = 0; i < hallway.Length; ++i)
+				if (currentStateString == "A........BDBDDACCBD.BAC..CA")
 				{
-					if (hallway[i] == '.')
-						continue;
-
-					char typeToMove = hallway[i];
-					int destRoom = typeToMove - 'A';
-					RoomSpace firstAvailiableInDestRoom = rooms[destRoom].GetFirstSpaceInRoom();
-					if (firstAvailiableInDestRoom != RoomSpace.None)
-					{
-						if (firstAvailiableInDestRoom == RoomSpace.Bottom
-							|| (firstAvailiableInDestRoom == RoomSpace.Top && rooms[destRoom].bottomLocked))
-						{
-							// Move it there
-							MoveFromHallwayToRoom(i, ref rooms[destRoom], ref hallway, ref energyCost);
-							PrintLayout(ref hallway, ref rooms);
-							hasMoved = true;
-							break;
-						}
-						else
-						{
-							// Can't add to dest room yet since the room contains an amphipod that doesn't belong
-							// Need to move that one first
-							typeToMove = rooms[destRoom].bottomSpace;
-							int newDestRoom = typeToMove - 'A';
-
-							// Move out of room in the right direction
-							bool moveRight = newDestRoom > destRoom;
-							int hallwayIndex = rooms[destRoom].roomToHallwayLoc + (moveRight ? 1 : -1);
-							MoveFromRoomToHallway(ref rooms[destRoom], hallwayIndex, ref hallway, ref energyCost);
-							PrintLayout(ref hallway, ref rooms);
-							hasMoved = true;
-							break;
-						}
-					}
+					int z = 0;
 				}
 
-				if (hasMoved)
+				if (!visitedStates.ContainsKey(currentStateString))
+				{
+					visitedStates.Add(currentStateString, currentState);
+				}
+				else if (visitedStates[currentStateString].energyCostSoFar > currentState.energyCostSoFar)
+				{
+					visitedStates[currentStateString] = currentState;
+				}
+
+				if (currentState.IsFinished())
+				{
+					finishedStates.Add(currentState);
+					if (lowestCost > currentState.energyCostSoFar)
+					{
+						lowestCost = currentState.energyCostSoFar;
+						lowestCostState = currentState;
+					}
 					continue;
-
-				// Can any amphipods go into another room?
-				for (int i = 0; i < 4; ++i)
-				{
-					if (rooms[i].IsLocked())
-						continue;
-
-					char typeToMove = '.';
-					RoomSpace spaceToMoveFrom = RoomSpace.None;
-
-					if (rooms[i].GetFirstUnlockedAmphipod(out typeToMove, out spaceToMoveFrom))
-					{
-						int destRoom = typeToMove - 'A';
-						RoomSpace destRoomSpace = rooms[destRoom].GetFirstSpaceInRoom();
-						if (destRoomSpace == RoomSpace.Bottom)
-						{
-							// Can place in bottom of room to start it
-							MoveFromRoomToRoom(ref rooms[i], ref rooms[destRoom], ref energyCost);
-							PrintLayout(ref hallway, ref rooms);
-							hasMoved = true;
-							break;
-						}
-						else if (rooms[destRoom].bottomLocked && destRoomSpace == RoomSpace.Top)
-						{
-							// Can place in top of room to complete it
-							MoveFromRoomToRoom(ref rooms[i], ref rooms[destRoom], ref energyCost);
-							PrintLayout(ref hallway, ref rooms);
-							hasMoved = true;
-							break;
-						}
-					}
 				}
 
-				if (hasMoved)
-					continue;
-
-				// Find first available char that needs to move left
-				for (int i = 1; i < 4; ++i)
+				// HALLWAY -> ROOM
+				// Check any hallway amphipods for movement into their dest room
+				for (int hallwayIndex = 0; hallwayIndex < currentState.hallway.Length; ++hallwayIndex)
 				{
-					char typeToMove = '.';
-					RoomSpace spaceToMoveFrom = RoomSpace.None;
-					if (!rooms[i].GetFirstUnlockedAmphipod(out typeToMove, out spaceToMoveFrom))
-						continue;
-
-					int destRoom = typeToMove - 'A';
-					if (destRoom < i)
+					if (currentState.hallway[hallwayIndex] != '.')
 					{
-						// Needs to move just left of room if available
-						int hallIndex = rooms[destRoom].roomToHallwayLoc - 1;
-						if (MoveFromRoomToHallway(ref rooms[i], hallIndex, ref hallway, ref energyCost))
+						char typeToMove = currentState.hallway[hallwayIndex];
+
+						// Can dest room accept this hallway amphipod?
+						int destRoomIndex = typeToMove - 'A';
+
+						if (currentState.RoomCanAccept(destRoomIndex, typeToMove))
 						{
-							PrintLayout(ref hallway, ref rooms);
-							hasMoved = true;
-							break;
+							// Room will accept the amphipod - but is hallway clear?
+							if (currentState.IsHallwayClear(hallwayIndex, State.s_roomToHallwayIndices[destRoomIndex]))
+							{
+								// Hallway is also clear, so this is a valid move
+								State newState = new State(currentState);
+
+								char poppedType = newState.RemoveFromHallway(hallwayIndex);
+								int spacesMoved = Math.Abs(hallwayIndex - State.s_roomToHallwayIndices[destRoomIndex]);
+								newState.AddToRoom(destRoomIndex, poppedType, ref spacesMoved);
+								newState.IncrementEnergy(spacesMoved, poppedType);
+
+								// If we haven't checked this state before, queue it up to be checked
+								if (!visitedStates.ContainsKey(newState.GetUniqueString())
+										&& newState.energyCostSoFar < lowestCost)
+									statesToCheck.Enqueue(newState);
+							}
 						}
 					}
 				}
 
-				if (hasMoved)
-					continue;
-
-				// Are there any amphipods in a room blocking another that doesn't belong?
-				for (int i = 1; i < 4; ++i)
+				// For all rooms..
+				for (int roomIndex = 0; roomIndex < 4; ++roomIndex)
 				{
-					if (rooms[i].IsLocked())
-						continue;
-
-					char typeToMove = '.';
-					RoomSpace spaceToMoveFrom = RoomSpace.None;
-					if (!rooms[i].GetFirstUnlockedAmphipod(out typeToMove, out spaceToMoveFrom))
-						continue;
-
-					int destRoom = typeToMove - 'A';
-					if (destRoom == i)
+					string room = currentState.rooms[roomIndex];
+					int roomTopIndex = 0;
+					bool allCorrect = true;
+					bool containsAmphipod = false;
+					for (int spaceIndex = room.Length - 1; spaceIndex >= 0; --spaceIndex)
 					{
-						// In the correct room but not locked in, what's underneath?
-						char blockedType = rooms[i].bottomSpace;
+						if (room[spaceIndex] != '.')
+						{
+							containsAmphipod = true;
+							if ((room[spaceIndex] - 'A') != roomIndex)
+								allCorrect = false;
 
-						// Move blocking amphipod out the way so it can return to the correct room later
-						int hallwayIndex = rooms[i].roomToHallwayLoc - 1;
-						MoveFromRoomToHallway(ref rooms[i], hallwayIndex, ref hallway, ref energyCost);
-						PrintLayout(ref hallway, ref rooms);
-
-						// Move previously blocked one out of the way
-						hallwayIndex = rooms[i].roomToHallwayLoc + 1;
-						MoveFromRoomToHallway(ref rooms[i], hallwayIndex, ref hallway, ref energyCost);
-						PrintLayout(ref hallway, ref rooms);
-						
-						hasMoved = true;
-						
-						break;
+							roomTopIndex = spaceIndex;
+						}
 					}
-				}
 
+					if (!containsAmphipod)
+					{
+						// Room has nothing to move
+						continue;
+					}
 
-				if (!hasMoved)
-				{
-					Console.WriteLine("Nothing happened in this step");
+					if (allCorrect)
+					{
+						// The amphipod is in its dest room
+						continue;
+					}
+
+					char typeToMove = room[roomTopIndex];
+
+					int hallwayEntranceIndex = State.s_roomToHallwayIndices[roomIndex];
+
+					// ROOM -> HALLWAY
+					// Check possible steps into hallway to the left
+					for (int j = State.s_validHallwayIndices.Length - 1; j >= 0; --j)
+					{
+						int checkHallwayIndex = State.s_validHallwayIndices[j];
+						// Check if this hallway index is to the right of the current room
+						if (checkHallwayIndex > hallwayEntranceIndex)
+							continue;
+
+						// Check if hallway is blocked - amphipod can't go any further
+						if (currentState.hallway[checkHallwayIndex] != '.')
+							break;
+
+						// Found valid place for amphipod to move to
+						State newState = new State(currentState);
+
+						int spacesMoved = 0;
+						char poppedType = newState.PopFromRoom(roomIndex, ref spacesMoved);
+						newState.AddToHallway(checkHallwayIndex, poppedType);
+						spacesMoved += Math.Abs(checkHallwayIndex - State.s_roomToHallwayIndices[roomIndex]);
+						newState.IncrementEnergy(spacesMoved, poppedType);
+
+						// If we haven't checked this state before, queue it up to be checked
+						if (!visitedStates.ContainsKey(newState.GetUniqueString())
+							&& newState.energyCostSoFar < lowestCost)
+							statesToCheck.Enqueue(newState);
+					}
+
+					// Check possible steps into hallway to the right
+					for (int j = 0; j < State.s_validHallwayIndices.Length; ++j)
+					{
+						int checkHallwayIndex = State.s_validHallwayIndices[j];
+						// Check if this hallway index is to the left of the current room
+						if (checkHallwayIndex < hallwayEntranceIndex)
+							continue;
+
+						// Check if hallway is blocked - amphipod can't go any further
+						if (currentState.hallway[checkHallwayIndex] != '.')
+							break;
+
+						// Found valid place for amphipod to move to
+						State newState = new State(currentState);
+
+						int spacesMoved = 0;
+						char poppedType = newState.PopFromRoom(roomIndex, ref spacesMoved);
+						newState.AddToHallway(checkHallwayIndex, poppedType);
+						spacesMoved += Math.Abs(checkHallwayIndex - State.s_roomToHallwayIndices[roomIndex]);
+						newState.IncrementEnergy(spacesMoved, poppedType);
+
+						// If we haven't checked this state before, queue it up to be checked
+						if (!visitedStates.ContainsKey(newState.GetUniqueString())
+							&& newState.energyCostSoFar < lowestCost)
+							statesToCheck.Enqueue(newState);
+					}
+
+					// ROOM -> ROOM
+					// Check possible movements from room directly into destination room
+					int destRoomIndex = typeToMove - 'A';
+					string destRoom = currentState.rooms[destRoomIndex];
+					if (currentState.RoomCanAccept(destRoomIndex, typeToMove))
+					{
+						// Is hallway clear?
+						if (currentState.IsHallwayClear(State.s_roomToHallwayIndices[roomIndex], State.s_roomToHallwayIndices[destRoomIndex]))
+						{
+							// Found valid place for amphipod to move to
+							State newState = new State(currentState);
+							int spacesMoved = 0;
+							char poppedType = newState.PopFromRoom(roomIndex, ref spacesMoved);
+							spacesMoved += Math.Abs(State.s_roomToHallwayIndices[roomIndex] - State.s_roomToHallwayIndices[destRoomIndex]);
+							newState.AddToRoom(destRoomIndex, typeToMove, ref spacesMoved);
+							newState.IncrementEnergy(spacesMoved, poppedType);
+
+							// If we haven't checked this state before, queue it up to be checked
+							if (!visitedStates.ContainsKey(newState.GetUniqueString())
+								&& newState.energyCostSoFar < lowestCost)
+								statesToCheck.Enqueue(newState);
+						}
+					}
 				}
 			}
 
+			return lowestCostState;
+		}
+
+		static void Main(string[] args)
+		{
 			// Part One
 			{
-				Console.WriteLine("Part One:");
+				Console.WriteLine("\nPart One:");
+				State lowestCostState = SolveAmphipods("input.txt");
+				lowestCostState.PrintPathToState();
+				Console.WriteLine("Lowest energy amount spent arranging amphipods is: " + lowestCostState.energyCostSoFar);
+			}
 
-				Console.WriteLine("Lowest energy amount spent arranging amphipods is: " + energyCost);
+			// Part Two
+			{
+				Console.WriteLine("\nPart Two:");
+				State lowestCostState = SolveAmphipods("input2.txt");
+				lowestCostState.PrintPathToState();
+				Console.WriteLine("Lowest energy amount spent arranging amphipods is: " + lowestCostState.energyCostSoFar);
 			}
 		}
 	}

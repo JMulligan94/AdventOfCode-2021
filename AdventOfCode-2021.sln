@@ -47,7 +47,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "21-DiracDice", "21-DiracDic
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "22-ReactorReboot", "22-ReactorReboot\22-ReactorReboot.csproj", "{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "23-Amphipod", "23-Amphipod\23-Amphipod.csproj", "{94A8BC54-5FDD-4337-A65E-53C9B8C7829A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "23-Amphipod", "23-Amphipod\23-Amphipod.csproj", "{94A8BC54-5FDD-4337-A65E-53C9B8C7829A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
