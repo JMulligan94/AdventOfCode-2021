@@ -6,22 +6,47 @@ namespace _22_ReactorReboot
 {
 	class Instruction
 	{
+		public string originalLine;
 		public int xMin, xMax;
 		public int yMin, yMax;
 		public int zMin, zMax;
 		public bool turnOn;
+
+		public override string ToString()
+		{
+			return originalLine;
+		}
+
+		public int CompareXMinTo(Instruction other)
+		{
+			return xMin.CompareTo(other.xMin);
+		}
+
+		public int CompareYMinTo(Instruction other)
+		{
+			return yMin.CompareTo(other.yMin);
+		}
+
+		public int CompareZMinTo(Instruction other)
+		{
+			return zMin.CompareTo(other.zMin);
+		}
 	}
 
 	class Program
 	{
 		static void Main(string[] args)
 		{
-			var lines = File.ReadAllLines("input.txt");
-			List<Instruction> instructions = new List<Instruction>();
+			var lines = File.ReadAllLines("testA.txt");
 
-			foreach(var line in lines)
+			// Parse lines into instructions
+			List<Instruction> instructionsOn = new List<Instruction>();
+			List<Instruction> instructionsOff = new List<Instruction>();
+			foreach (var line in lines)
 			{
 				Instruction instruction = new Instruction();
+				
+				instruction.originalLine = line;
 
 				instruction.turnOn = line.Split(' ')[0] == "on";
 
@@ -40,61 +65,52 @@ namespace _22_ReactorReboot
 				instruction.zMin = int.Parse(zRange.Split('.')[0]);
 				instruction.zMax = int.Parse(zRange.Split('.')[2]);
 
-				instructions.Add(instruction);
+				if (instruction.turnOn)
+					instructionsOn.Add(instruction);
+				else
+					instructionsOff.Add(instruction);
 			}
 
-			// Part One - Only in the -50 to 50 range on all 2 axes
+			// Part One - Only consider ones in -50 -> 50 range on all axes
 			{
-				// Initialise 101x101x101 3D cube array
-				// Emulates -50 to 50 range in all axes (extra 1 for cube 0)
-				bool[,,] cubes = new bool[101, 101, 101];
+				List<Instruction> xRangeAsc = new List<Instruction>(instructionsOn);
+				xRangeAsc.Sort((x, y) => x.CompareXMinTo(y));
 
-				foreach (var instruction in instructions)
-				{
-					//Console.WriteLine("\n===Parsing next instruction===");
+				List<Instruction> yRangeAsc = new List <Instruction>(instructionsOn);
+				yRangeAsc.Sort((x, y) => x.CompareYMinTo(y));
 
-					for (int x = instruction.xMin; x <= instruction.xMax; ++x)
-					{
-						int transposedX = x + 50; // move into 0 to 101 range
-						if (transposedX < 0 || transposedX > 100)
-							continue;
+				List<Instruction> zRangeAsc = new List<Instruction>(instructionsOn);
+				zRangeAsc.Sort((x, y) => x.CompareZMinTo(y));
 
-						for (int y = instruction.yMin; y <= instruction.yMax; ++y)
-						{
-							int transposedY = y + 50; // move into 0 to 101 range
-							if (transposedY < 0 || transposedY > 100)
-								continue;
 
-							for (int z = instruction.zMin; z <= instruction.zMax; ++z)
-							{
-								int transposedZ = z + 50; // move into 0 to 101 range
-								if (transposedZ < 0 || transposedZ > 100)
-									continue;
+				//foreach (var instruction in instructions)
+				//{
+				//	Tuple<int, int> newRange = new Tuple<int, int>(instruction.xMin, instruction.xMax);
 
-								//Console.WriteLine("Turning " + (instruction.turnOn ? "on" : "off") + " - (" + transposedX + "," + transposedY + "," + transposedZ + ")");
-
-								cubes[transposedX, transposedY, transposedZ] = instruction.turnOn;
-							}
-						}
-					}
-				}
-
-				// Count how many cubes are now lit
-				UInt64 litCubeCount = 0;
-				for (int x = 0; x < 101; ++x)
-				{
-					for (int y = 0; y < 101; ++y)
-					{
-						for (int z = 0; z < 101; ++z)
-						{
-							if (cubes[x, y, z])
-								litCubeCount++;
-						}
-					}
-				}
+				//	if (instruction.turnOn)
+				//	{
+				//		for (int i = xRangesOn.Count - 1; i >= 0; --i)
+				//		{
+				//			// Check if this new range overlaps others
+				//			int j = 0;
+				//		}
+				//		xRangesOn.Add(newRange);
+				//		xRangesOn.Sort((x,y) => x.Item1.CompareTo(y.Item1));
+				//	}
+				//	else
+				//	{
+				//		for (int i = xRangesOff.Count - 1; i >= 0; --i)
+				//		{
+				//			// Check if this new range overlaps others
+				//			int j = 0;
+				//		}
+				//		xRangesOff.Add(newRange);
+				//		xRangesOff.Sort((x, y) => x.Item1.CompareTo(y.Item1));
+				//	}
+				//}
 
 				Console.WriteLine("Part One");
-				Console.WriteLine("Number of lit cubes after instructions is: " + litCubeCount);
+				Console.WriteLine("Number of lit cubes after instructions is: ");
 			}
 
 			// Part Two

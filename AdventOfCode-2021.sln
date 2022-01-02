@@ -45,7 +45,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "20-TrenchMap", "20-TrenchMa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "21-DiracDice", "21-DiracDice\21-DiracDice.csproj", "{8170590B-2409-4C8E-8A55-6950BA9B9417}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "22-ReactorReboot", "22-ReactorReboot\22-ReactorReboot.csproj", "{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "22-ReactorReboot", "22-ReactorReboot\22-ReactorReboot.csproj", "{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "23-Amphipod", "23-Amphipod\23-Amphipod.csproj", "{94A8BC54-5FDD-4337-A65E-53C9B8C7829A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -141,6 +143,10 @@ Global
 		{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FB9AA99F-5FCB-4975-A39F-AE73B451DE20}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94A8BC54-5FDD-4337-A65E-53C9B8C7829A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94A8BC54-5FDD-4337-A65E-53C9B8C7829A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94A8BC54-5FDD-4337-A65E-53C9B8C7829A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94A8BC54-5FDD-4337-A65E-53C9B8C7829A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
