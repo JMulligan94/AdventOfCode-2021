@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace _24_ArithmeticLogicUnit
 {
@@ -10,12 +11,18 @@ namespace _24_ArithmeticLogicUnit
 		int[] values = new int[4] { 0,0,0,0 };
 		int readIndex = 0;
 
+		enum ValueIndex
+		{
+			W,X,Y,Z
+		}
+
 		public ALU(string _modelNumber, int initZ)
 		{
 			modelNumber = _modelNumber;
-			values[GetValueIndex('z')] = initZ;
+			values[(int)ValueIndex.Z] = initZ;
 		}
 
+		// Read instructions line by line
 		public void ReadInstruction(string instruction)
 		{
 			var tokens = instruction.Split(' ');
@@ -76,6 +83,29 @@ namespace _24_ArithmeticLogicUnit
 			}
 		}
 
+		// Quicker method by just passing in parameters for each step
+		public void ReadInstructionAlt(int divZ, int addX, int addY)
+		{ 
+			// Read an input value and write it to variable [1]
+			int w = int.Parse(modelNumber[readIndex] + "");
+			int x = 0;
+			int y = 0;
+			int z = values[(int)ValueIndex.Z];
+
+			readIndex++;
+
+			if ((z % 26) + addX == w)
+			{
+				z = (26 * (z / divZ)) + w + addY;
+			}
+			else
+			{
+				z = (z / divZ);
+			}
+
+			values = new int[]{ w,x,y,z };
+		}
+
 		public int GetZ() { return values[GetValueIndex('z')]; }
 
 		private int GetValueIndex(char valueChar)
@@ -86,53 +116,65 @@ namespace _24_ArithmeticLogicUnit
 
 
 	class Program
-	{
-		static bool RecurseFindInitialZForTargetZ(int targetZ, int modelNumberDigit, ref List<string>[] instructions)
+	{ 
+		static void RecurseFindValidModelNumbers(int digitNum, long z, long zCap, ref int[,] parameters, string numberSoFar, ref List<string> validNumbers)
 		{
-			if (modelNumberDigit == 0)
-			{
-				// Found valid model number
-				return true;
-			}
+			int divisor = parameters[digitNum, 0];
 
-			Console.WriteLine("\n=== Checking digit " + modelNumberDigit + " for z=" + targetZ + " ===");
+			// divide zCap by divisor for the new maximum z value allowed at this point
+			zCap /= divisor;
 
-			// Try every digit from 9 to 1 (0 is not allowed in the model number)
-			for (int digitToCheck = 9; digitToCheck >= 1; --digitToCheck)
+			int p1 = parameters[digitNum, 1];
+			int p2 = parameters[digitNum, 2];
+
+			// Try every digit for this place in the model number from 9 down to 1
+			for (int w = 9; w >= 1; --w)
 			{
-				// Brute force the z value needed to be passed in to get the target z value for this digit
-				for (int z = 0; z < 100; ++z)
+				// Instructions condensed down into shorter form
+				long localZ = z;
+
+				// Test for whether x=1
+				bool xIs1 = ((localZ % 26) + p1) != w;
+				if (xIs1)
 				{
-					ALU alu = new ALU(digitToCheck.ToString(), z);
-					foreach (var line in instructions[modelNumberDigit-1])
-					{
-						alu.ReadInstruction(line);
-					}
-
-					if (alu.GetZ() == targetZ)
-					{
-						Console.WriteLine("Digit " + modelNumberDigit + ": '" + digitToCheck + "' with z: " + z + " - valid");
-
-						if (RecurseFindInitialZForTargetZ(z, modelNumberDigit - 1, ref instructions))
-						{
-							return true;
-						}
-					}
+					localZ = (26 * (localZ / divisor)) + w + p2;
 				}
-			}
+				else
+				{
+					localZ /= divisor;
+				}
 
-			Console.WriteLine("=== Couldn't find anything for digit " + modelNumberDigit + " for z=" + targetZ + " ===");
-			return false;
+				// This zCap is the thing that allows brute force to work quickly
+				// If z is currently greater than the product of all the divisors left in the coming digits, there's no way for it to hit 0 again in time for the 14th digit place
+				// so we can early out..
+				if (localZ >= zCap)
+					continue;
+
+				string newNumber = numberSoFar.ToString() + w.ToString();
+
+				// We've hit the final digit of the model number and z=0
+				// therefore this is a valid number
+				if (digitNum == 13 && localZ == 0)
+				{
+					Console.WriteLine("Found valid number: " + newNumber);
+					validNumbers.Add(newNumber);
+					continue;
+				}
+
+				// Recurse into the next digit place
+				RecurseFindValidModelNumbers(digitNum + 1, localZ, zCap, ref parameters, newNumber, ref validNumbers);
+			}
 		}
 
 		static void Main(string[] args)
 		{
 			var lines = File.ReadAllLines("input.txt");
+
+			// Parse input into 14 sets of instructions
 			int digitIndex = 0;
 			List<string>[] instructions = new List<string>[14];
-
 			List<string> digitInstructions = new List<string>();
-			foreach(var line in lines)
+			foreach (var line in lines)
 			{
 				if (line.StartsWith("inp"))
 				{
@@ -147,12 +189,53 @@ namespace _24_ArithmeticLogicUnit
 			}
 			instructions[digitIndex] = digitInstructions;
 
-			RecurseFindInitialZForTargetZ(0, 14, ref instructions);
+			// Extract the 3 parameter differences between the sets - the rest of the instructions are identical between digit places
+			int[,] parameters = new int[14, 3];
+			for (int i = 0; i < instructions.Length; ++i)
+			{
+				parameters[i, 0] = int.Parse(instructions[i][4].Split(' ')[2]);
+				parameters[i, 1] = int.Parse(instructions[i][5].Split(' ')[2]);
+				parameters[i, 2] = int.Parse(instructions[i][15].Split(' ')[2]);
+			}
 
-			// Part One
+			// Recurse through all 14 digit permutations with 1-9 in each digit place
+			// and maintain a list of valid numbers found
+			List<string> validNumbers = new List<string>();
+			long z = 0;
+
+			// There are 7 divisors of 26 in the instructions and 7 divisors of 1
+			// Total product of all divisors is therefore 26^7.
+			// We can use this information to early out on some recursive paths if the z value is greater than this amount
+			long zCap = (long)Math.Pow(26, 7);
+			RecurseFindValidModelNumbers(0, z, zCap, ref parameters, "", ref validNumbers);
+
+			// Sort from lowest number to highest
+			validNumbers.Sort();
+
+			// Part One - Highest valid model number
 			{
 				Console.WriteLine("\nPart One:");
-				Console.WriteLine("Largest valid 14-digit model number is: " );
+
+				// Just to confirm that this is a valid number by manually reading through instructions
+				ALU testAlu = new ALU(validNumbers.Last(), 0);
+				for (int i = 0; i < 14; ++i)
+					testAlu.ReadInstructionAlt(parameters[i, 0], parameters[i, 1], parameters[i, 2]);
+
+				if (testAlu.GetZ() == 0)
+					Console.WriteLine("Largest valid 14-digit model number is: " + validNumbers.Last());
+			}
+
+			// Part Two - Lowest valid model number
+			{
+				Console.WriteLine("\nPart Two:");
+
+				// Just to confirm that this is a valid number by manually reading through instructions
+				ALU testAlu = new ALU(validNumbers.First(), 0);
+				for (int i = 0; i < 14; ++i)
+					testAlu.ReadInstructionAlt(parameters[i, 0], parameters[i, 1], parameters[i, 2]);
+
+				if (testAlu.GetZ() == 0)
+					Console.WriteLine("Smallest valid 14-digit model number is: " + validNumbers.First());
 			}
 		}
 	}
