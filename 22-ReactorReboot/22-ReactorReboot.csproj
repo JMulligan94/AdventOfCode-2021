@@ -8,12 +8,16 @@
 
   <ItemGroup>
     <None Remove="input.txt" />
+    <None Remove="test.txt" />
     <None Remove="testA.txt" />
     <None Remove="testB.txt" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="input.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="test.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="testB.txt">
