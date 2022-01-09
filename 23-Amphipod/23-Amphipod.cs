@@ -253,11 +253,6 @@ namespace _23_Amphipod
 				State currentState = statesToCheck.Dequeue();
 				string currentStateString = currentState.GetUniqueString();
 
-				if (currentStateString == "A........BDBDDACCBD.BAC..CA")
-				{
-					int z = 0;
-				}
-
 				if (!visitedStates.ContainsKey(currentStateString))
 				{
 					visitedStates.Add(currentStateString, currentState);
