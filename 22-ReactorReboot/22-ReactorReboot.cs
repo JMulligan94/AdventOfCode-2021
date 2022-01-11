@@ -11,6 +11,9 @@ namespace _22_ReactorReboot
 		public int xMin, xMax;
 		public int yMin, yMax;
 		public int zMin, zMax;
+
+		public Cuboid cuboid;
+
 		public bool turnOn;
 
 		public override string ToString()
@@ -19,121 +22,256 @@ namespace _22_ReactorReboot
 		}
 	}
 
+	class Cuboid
+	{
+		public Coordinate min;
+		public Coordinate max;
+		public Cuboid(Coordinate _min, Coordinate _max)
+		{
+			min = _min;
+			max = _max;
+		}
+		public Cuboid(Cuboid other)
+		{
+			min = new Coordinate(other.min);
+			max = new Coordinate(other.max);
+		}
+
+		public override string ToString()
+		{
+			return $"Min:{min}, Max:{max}, Vol:{GetVolume()}";
+		}
+
+		internal ulong GetVolume()
+		{
+			ulong xRange = (ulong) Math.Abs(max.x - min.x) + 1;
+			ulong yRange = (ulong) Math.Abs(max.y - min.y) + 1;
+			ulong zRange = (ulong) Math.Abs(max.z - min.z) + 1;
+			return xRange * yRange * zRange;
+		}
+	}
+
+	class Coordinate
+	{
+		public int x;
+		public int y;
+		public int z;
+
+		public Coordinate(int _x, int _y, int _z)
+		{
+			x = _x;
+			y = _y;
+			z = _z;
+		}
+
+		public Coordinate(Coordinate other)
+		{
+			x = other.x;
+			y = other.y;
+			z = other.z;
+		}
+
+		public override string ToString()
+		{
+			return $"({x},{y},{z})";
+		}
+	}
+
 	class Program
 	{
-
-		static void CheckInRange_Partitions(Tuple<int, int> xRange, Tuple<int, int> yRange, Tuple<int,int> zRange, 
-			int instructionStep, ref List<Instruction> instructions, out ulong turnOnCount, out ulong turnOffCount)
+		// Brute force implementation of turning cubes on/off in a given range.
+		// Useful for debugging the faster method
+		static void PartOne_BruteForce(List<Instruction> instructions, int axisLimit)
 		{
-			Console.WriteLine("\nParsing instruction: \"" + instructions[instructionStep] + "\"...");
-
-			ulong xSize = (ulong)Math.Abs(xRange.Item1 - xRange.Item2) + 1; // +1 since upper boundary is also considered part of the range
-			ulong ySize = (ulong)Math.Abs(yRange.Item1 - yRange.Item2) + 1;
-			ulong zSize = (ulong)Math.Abs(zRange.Item1 - zRange.Item2) + 1;
-
-			turnOnCount = 0;
-			turnOffCount = 0;
-
-			// Partition into cubes of set amount
-			const int c_cubeSplitSize = 1000;
-			int numXPartitions = (int)(xSize / c_cubeSplitSize) + 1;
-			int numYPartitions = (int)(ySize / c_cubeSplitSize) + 1;
-			int numZPartitions = (int)(zSize / c_cubeSplitSize) + 1;
-
-			for (int xPartition = 0; xPartition < numXPartitions; ++xPartition)
+			// Part One - Only in the -50 to 50 range on all 2 axes
 			{
-				int partitionLowerX = xRange.Item1 + (xPartition * c_cubeSplitSize);
-				int partitionHigherX = Math.Min(xRange.Item2, xRange.Item1 + c_cubeSplitSize);
-				for (int yPartition = 0; yPartition < numYPartitions; ++yPartition)
+				// Initialise 101x101x101 3D cube array
+				// Emulates -50 to 50 range in all axes (extra 1 for cube 0)
+				int arrayDimension = (axisLimit * 2) + 1;
+				bool[,,] cubes = new bool[arrayDimension, arrayDimension, arrayDimension];
+
+				foreach (var instruction in instructions)
 				{
-					int partitionLowerY = yRange.Item1 + (yPartition * c_cubeSplitSize);
-					int partitionHigherY = Math.Min(yRange.Item2, yRange.Item1 + c_cubeSplitSize);
-					for (int zPartition = 0; zPartition < numZPartitions; ++zPartition)
+					if (instruction.xMin < -axisLimit || instruction.xMax > axisLimit)
+						continue;
+					if (instruction.yMin < -axisLimit || instruction.yMax > axisLimit)
+						continue;
+					if (instruction.zMin < -axisLimit || instruction.zMax > axisLimit)
+						continue;
+
+
+					for (int x = instruction.xMin; x <= instruction.xMax; ++x)
 					{
-						int partitionLowerZ = zRange.Item1 + (zPartition * c_cubeSplitSize);
-						int partitionHigherZ = Math.Min(zRange.Item2, zRange.Item1 + c_cubeSplitSize);
+						int transposedX = x + axisLimit; // move into 0 to 101 range
+						if (transposedX < 0 || transposedX > axisLimit*2)
+							continue;
 
-						bool[,,] lights = new bool[c_cubeSplitSize+1, c_cubeSplitSize+1, c_cubeSplitSize+1];
-
-						// Recreate state for all steps beforehand
-						for (int i = 0; i < instructionStep; ++i)
+						for (int y = instruction.yMin; y <= instruction.yMax; ++y)
 						{
-							Instruction previousInstruction = instructions[i];
-
-							if (previousInstruction.xMin > partitionHigherX || previousInstruction.xMax < partitionLowerX)
+							int transposedY = y + axisLimit; // move into 0 to 101 range
+							if (transposedY < 0 || transposedY > axisLimit*2)
 								continue;
 
-							if (previousInstruction.yMin > partitionHigherY || previousInstruction.yMax < partitionLowerY)
-								continue;
-
-							if (previousInstruction.zMin > partitionHigherZ || previousInstruction.zMax < partitionLowerZ)
-								continue;
-
-							int lowerX = Math.Max(partitionLowerX, previousInstruction.xMin);
-							int upperX = Math.Min(partitionHigherX, previousInstruction.xMax);
-							int lowerY = Math.Max(partitionLowerY, previousInstruction.yMin);
-							int upperY = Math.Min(partitionHigherY, previousInstruction.yMax);
-							int lowerZ = Math.Max(partitionLowerZ, previousInstruction.zMin);
-							int upperZ = Math.Min(partitionHigherZ, previousInstruction.zMax);
-
-							// Turn on/off lights for this step in the given section
-							for (int x = lowerX; x <= upperX; ++x)
+							for (int z = instruction.zMin; z <= instruction.zMax; ++z)
 							{
-								int transposedX = x - xRange.Item1 - (xPartition * c_cubeSplitSize);
-								for (int y = lowerY; y <= upperY; ++y)
-								{
-									int transposedY = y - yRange.Item1 - (yPartition * c_cubeSplitSize);
-									for (int z = lowerZ; z <= upperZ; ++z)
-									{
-										int transposedZ = z - zRange.Item1 - (zPartition * c_cubeSplitSize);
-										lights[transposedX, transposedY, transposedZ] = previousInstruction.turnOn;
-									}
-								}
+								int transposedZ = z + axisLimit; // move into 0 to 101 range
+								if (transposedZ < 0 || transposedZ > axisLimit*2)
+									continue;
+
+								//Console.WriteLine("Turning " + (instruction.turnOn ? "on" : "off") + " - (" + transposedX + "," + transposedY + "," + transposedZ + ")");
+
+								cubes[transposedX, transposedY, transposedZ] = instruction.turnOn;
 							}
 						}
-
-						Instruction currentInstruction = instructions[instructionStep];
-						int xStart = Math.Max(xRange.Item1, xRange.Item1 + (xPartition * c_cubeSplitSize));
-						int xEnd = Math.Min(xRange.Item2, xStart + c_cubeSplitSize);
-						int yStart = Math.Max(yRange.Item1, yRange.Item1 + (yPartition * c_cubeSplitSize));
-						int yEnd = Math.Min(yRange.Item2, yStart + c_cubeSplitSize);
-						int zStart = Math.Max(zRange.Item1, zRange.Item1 + (zPartition * c_cubeSplitSize));
-						int zEnd = Math.Min(zRange.Item2, zStart + c_cubeSplitSize);
-
-						// Turn on/off lights for this step in the given section
-						for (int x = xStart; x <= xEnd; ++x)
+					}
+					
+					UInt64 intervalLitCubeCount = 0;
+					for (int x = 0; x < arrayDimension; ++x)
+					{
+						for (int y = 0; y < arrayDimension; ++y)
 						{
-							int transposedX = x - xStart;
-							for (int y = yStart; y <= yEnd; ++y)
+							for (int z = 0; z < arrayDimension; ++z)
 							{
-								int transposedY = y - yStart;
-								for (int z = zStart; z <= zEnd; ++z)
-								{
-									int transposedZ = z - zStart;
-									bool lightOn = lights[transposedX, transposedY, transposedZ];
-									if (currentInstruction.turnOn)
-									{
-										if (!lightOn)
-											turnOnCount++;
-									}
-									else
-									{
-										if (lightOn)
-											turnOffCount++;
-									}
-								}
+								if (cubes[x, y, z])
+									intervalLitCubeCount++;
 							}
 						}
-						//Console.WriteLine("Partition (" + xPartition + "," + yPartition + "," + zPartition + ") - on: " + turnOnCount + ", off: " + turnOffCount);
+					}
+					Console.WriteLine($"After instruction: {instruction}, number of lit cubes = {intervalLitCubeCount}");
+				}
+
+				// Count how many cubes are now lit
+				UInt64 litCubeCount = 0;
+				for (int x = 0; x < arrayDimension; ++x)
+				{
+					for (int y = 0; y < arrayDimension; ++y)
+					{
+						for (int z = 0; z < arrayDimension; ++z)
+						{
+							if (cubes[x, y, z])
+								litCubeCount++;
+						}
 					}
 				}
+				Console.WriteLine($"Brute force finished! Number of lit cubes = {litCubeCount}\n");
 			}
-			Console.WriteLine("New on: " + turnOnCount + ", New off: " + turnOffCount);
+		}
+
+		static void CutHoleInCuboids(Cuboid cutCuboid, ref List<Cuboid> cuboidList)
+		{
+			var newCuboidList = new List<Cuboid>();
+
+			// Which cuboids overlap?
+			for (int cuboidIndex = 0; cuboidIndex < cuboidList.Count; ++cuboidIndex)
+			{
+				Cuboid existingCuboid = cuboidList[cuboidIndex];
+
+				bool overlapsX = false;
+				bool overlapsY = false;
+				bool overlapsZ = false;
+
+				// Check overlap
+				if (existingCuboid.max.x >= cutCuboid.min.x
+					&& existingCuboid.min.x <= cutCuboid.max.x)
+				{
+					// Overlaps x
+					overlapsX = true;
+				}
+				if (existingCuboid.max.y >= cutCuboid.min.y
+					&& existingCuboid.min.y <= cutCuboid.max.y)
+				{
+					// Overlaps y
+					overlapsY = true;
+				}
+				if (existingCuboid.max.z >= cutCuboid.min.z
+					&& existingCuboid.min.z <= cutCuboid.max.z)
+				{
+					// Overlaps z
+					overlapsZ = true;
+				}
+
+				if (overlapsX && overlapsY && overlapsZ)
+				{
+					// Overlaps with existing cuboid
+					// Break existing cuboid down into potentially 6 cuboids
+
+					// Resolve x axis overlap
+					if (existingCuboid.min.x < cutCuboid.min.x
+						&& cutCuboid.min.x <= existingCuboid.max.x) // Slicing left side
+					{
+						Cuboid slicedCuboid = new Cuboid(existingCuboid.min, new Coordinate(cutCuboid.min.x - 1, existingCuboid.max.y, existingCuboid.max.z));
+						if (slicedCuboid.GetVolume() > 0)
+							newCuboidList.Add(slicedCuboid);
+						existingCuboid.min = new Coordinate(cutCuboid.min.x, existingCuboid.min.y, existingCuboid.min.z);
+					}
+
+					if (existingCuboid.min.x <= cutCuboid.max.x
+						&& cutCuboid.max.x < existingCuboid.max.x) // Slicing right side
+					{
+						Cuboid slicedCuboid = new Cuboid(new Coordinate(cutCuboid.max.x + 1, existingCuboid.min.y, existingCuboid.min.z), existingCuboid.max);
+						if (slicedCuboid.GetVolume() > 0)
+							newCuboidList.Add(slicedCuboid);
+						existingCuboid.max = new Coordinate(cutCuboid.max.x, existingCuboid.max.y, existingCuboid.max.z);
+					}
+
+					// Resolve y axis overlap
+					if (existingCuboid.min.y < cutCuboid.min.y
+						&& cutCuboid.min.y <= existingCuboid.max.y) // Slicing top side
+					{
+						Cuboid slicedCuboid = new Cuboid(existingCuboid.min, new Coordinate(existingCuboid.max.x, cutCuboid.min.y - 1, existingCuboid.max.z));
+						if (slicedCuboid.GetVolume() > 0)
+							newCuboidList.Add(slicedCuboid);
+						existingCuboid.min = new Coordinate(existingCuboid.min.x, cutCuboid.min.y, existingCuboid.min.z);
+					}
+					if (existingCuboid.min.y <= cutCuboid.max.y
+						&& cutCuboid.max.y < existingCuboid.max.y) // Slicing bottom side
+					{
+						Cuboid slicedCuboid = new Cuboid(new Coordinate(existingCuboid.min.x, cutCuboid.max.y + 1, existingCuboid.min.z), existingCuboid.max);
+						if (slicedCuboid.GetVolume() > 0)
+							newCuboidList.Add(slicedCuboid);
+						existingCuboid.max = new Coordinate(existingCuboid.max.x, cutCuboid.max.y, existingCuboid.max.z);
+					}
+
+					// Resolve z axis overlap
+					if (existingCuboid.min.z < cutCuboid.min.z
+						&& cutCuboid.min.z <= existingCuboid.max.z) // Slicing behind
+					{
+						Cuboid slicedCuboid = new Cuboid(existingCuboid.min, new Coordinate(existingCuboid.max.x, existingCuboid.max.y, cutCuboid.min.z - 1));
+						if (slicedCuboid.GetVolume() > 0)
+							newCuboidList.Add(slicedCuboid);
+						existingCuboid.min = new Coordinate(existingCuboid.min.x, existingCuboid.min.y, cutCuboid.min.z);
+					}
+					if (existingCuboid.min.z <= cutCuboid.max.z
+						&& cutCuboid.max.z < existingCuboid.max.z) // Slicing in front
+					{
+						Cuboid slicedCuboid = new Cuboid(new Coordinate(existingCuboid.min.x, existingCuboid.min.y, cutCuboid.max.z + 1), existingCuboid.max);
+						if (slicedCuboid.GetVolume() > 0)
+							newCuboidList.Add(slicedCuboid);
+						existingCuboid.max = new Coordinate(existingCuboid.max.x, existingCuboid.max.y, cutCuboid.max.z);
+					}
+				}
+				else
+				{
+					newCuboidList.Add(existingCuboid);
+				}
+			}
+
+			cuboidList = newCuboidList;
+		}
+
+		static ulong GetTotalVolume(List<Cuboid> cuboidList)
+		{
+			ulong area = 0;
+			foreach(Cuboid cuboid in cuboidList)
+			{
+				area += cuboid.GetVolume();
+			}
+			return area;
 		}
 
 		static void Main(string[] args)
 		{
-			var lines = File.ReadAllLines("test.txt");
+			var lines = File.ReadAllLines("input.txt");
 
 			// Parse lines into instructions
 			List<Instruction> instructions = new List<Instruction>();
@@ -168,6 +306,8 @@ namespace _22_ReactorReboot
 				instruction.zMin = int.Parse(zRange.Split('.')[0]);
 				instruction.zMax = int.Parse(zRange.Split('.')[2]);
 
+				instruction.cuboid = new Cuboid(new Coordinate(instruction.xMin, instruction.yMin, instruction.zMin), new Coordinate(instruction.xMax, instruction.yMax, instruction.zMax));
+
 				instructions.Add(instruction);
 
 				xLower = Math.Min(xLower, instruction.xMin);
@@ -179,62 +319,67 @@ namespace _22_ReactorReboot
 				zUpper = Math.Max(zUpper, instruction.zMax);
 			}
 
+			const int c_axisLimit = 50;
+
+			// BRUTE FORCE FOR COMPARISON
+			//PartOne_BruteForce(instructions, c_axisLimit);
+
+			var cuboidList = new List<Cuboid>();
+			foreach (Instruction instruction in instructions)
+			{
+				Cuboid newCuboid = new Cuboid(instruction.cuboid);
+
+				CutHoleInCuboids(newCuboid, ref cuboidList);
+
+				// If we're turning this section on, fill in the hole we just created now with the new cuboid
+				if (instruction.turnOn)
+					cuboidList.Add(newCuboid);
+
+				ulong intervalLitCubes = GetTotalVolume(cuboidList);
+				Console.WriteLine($"Number of lit cubes after instruction \"{instruction}\" is: {intervalLitCubes}");
+			}
+
+			// Cache number of lit cubes before we restrict it to the initialisation region
+			ulong partTwoVolume = GetTotalVolume(cuboidList);
+
 			// Part One - Only consider ones in -50 -> 50 range on all axes
 			{
-				ulong litCubes = 0;
-				//for (int i = 0; i < instructions.Count; ++i)
-				//{
-				//	Instruction instruction = instructions[i];
+				// Cut down to the range -50...50 in all axes
+				if (xLower < -c_axisLimit)
+				{
+					CutHoleInCuboids(new Cuboid(new Coordinate(xLower-1, yLower-1, zLower-1), new Coordinate(-(c_axisLimit+1), yUpper+1, zUpper+1)), ref cuboidList);
+				}
+				if (xUpper > c_axisLimit)
+				{
+					CutHoleInCuboids(new Cuboid(new Coordinate(c_axisLimit+1, yLower-1, zLower-1), new Coordinate(xUpper+1, yUpper+1, zUpper+1)), ref cuboidList);
+				}
+				if (yLower < -c_axisLimit)
+				{
+					CutHoleInCuboids(new Cuboid(new Coordinate(xLower-1, yLower-1, zLower-1), new Coordinate(xUpper+1, -(c_axisLimit+1), zUpper+1)), ref cuboidList);
+				}
+				if (yUpper > c_axisLimit)
+				{
+					CutHoleInCuboids(new Cuboid(new Coordinate(xLower-1, c_axisLimit+1, zLower-1), new Coordinate(xUpper+1, yUpper+1, zUpper+1)), ref cuboidList);
+				}
+				if (zLower < -c_axisLimit)
+				{
+					CutHoleInCuboids(new Cuboid(new Coordinate(xLower-1, yLower-1, zLower-1), new Coordinate(xUpper+1, yUpper+1, -(c_axisLimit+1))), ref cuboidList);
+				}
+				if (zUpper > c_axisLimit)
+				{
+					CutHoleInCuboids(new Cuboid(new Coordinate(xLower-1, yLower-1, c_axisLimit+1), new Coordinate(xUpper+1, yUpper+1, zUpper+1)), ref cuboidList);
+				}
 
-				//	// Limit ranges to -50 -> 50
-				//	if (instruction.xMax < -50 || instruction.xMin > 50)
-				//		continue;
+				ulong partOneVolume = GetTotalVolume(cuboidList);
 
-				//	if (instruction.yMax < -50 || instruction.yMin > 50)
-				//		continue;
-
-				//	if (instruction.zMax < -50 || instruction.zMin > 50)
-				//		continue;
-
-				//	Tuple<int, int> xRange = new Tuple<int, int>(Math.Max(-50, instruction.xMin), Math.Min(50, instruction.xMax));
-				//	Tuple<int, int> yRange = new Tuple<int, int>(Math.Max(-50, instruction.yMin), Math.Min(50, instruction.yMax));
-				//	Tuple<int, int> zRange = new Tuple<int, int>(Math.Max(-50, instruction.zMin), Math.Min(50, instruction.zMax));
-
-				//	ulong turnOnChange = 0;
-				//	ulong turnOffChange = 0;
-				//	CheckInRange_Partitions(xRange, yRange, zRange, i, ref instructions, out turnOnChange, out turnOffChange);
-					
-				//	litCubes += turnOnChange;
-				//	litCubes -= turnOffChange;
-				//}
-
-				Console.WriteLine("Part One");
-				Console.WriteLine("Number of lit cubes after instructions is: " + litCubes);
+				Console.WriteLine("\nPart One");
+				Console.WriteLine("Number of lit cubes after instructions is: " + partOneVolume + "\n");
 			}
 
 			// Part Two
 			{
-				ulong litCubes = 0;
-
-				// Recreate state for all steps beforehand
-				//for (int i = 0; i < instructions.Count; ++i)
-				//{
-				//	Instruction instruction = instructions[i];
-				//	Tuple<int, int> xRange = new Tuple<int, int>(instruction.xMin, instruction.xMax);
-				//	Tuple<int, int> yRange = new Tuple<int, int>(instruction.yMin, instruction.yMax);
-				//	Tuple<int, int> zRange = new Tuple<int, int>(instruction.zMin, instruction.zMax);
-
-				//	ulong turnOnChange = 0;
-				//	ulong turnOffChange = 0;
-				//	CheckInRange_Partitions(xRange, yRange, zRange, i, ref instructions, out turnOnChange, out turnOffChange);
-
-				//	litCubes += turnOnChange;
-				//	litCubes -= turnOffChange;
-				//}
-
-
 				Console.WriteLine("Part Two");
-				Console.WriteLine("Number of lit cubes after instructions is: " + litCubes);
+				Console.WriteLine("Number of lit cubes after instructions is: " + partTwoVolume);
 			}
 		}
 	}
