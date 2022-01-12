@@ -1,87 +1,65 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace _21_DiracDice
 {
-	class QuantumDiceGame
-	{
-		int p1Start;
-		int p2Start;
-
-		int p1Score;
-		int p2Score;
-
-		static int[] s_possibleRolls = new int[27];
-		static int[] s_rollCount = new int[10];
-
-		static QuantumDiceGame()
-		{
-			int rollIndex = 0;
-			for (int rollA = 1; rollA <= 3; ++rollA)
-			{
-				for (int rollB = 1; rollB <= 3; ++rollB)
-				{
-					for (int rollC = 1; rollC <= 3; ++rollC)
-					{
-						int possibleRoll = rollA + rollB + rollC;
-						s_possibleRolls[rollIndex++] = possibleRoll;
-						s_rollCount[possibleRoll]++;
-						Console.WriteLine(rollA + "," + rollB + "," + rollC + " -> " + possibleRoll);
-					}
-				}
-			}
-		}
-
-		public QuantumDiceGame(int _p1Start, int _p2Start, int _p1Score, int _p2Score)
-		{
-			p1Start = _p1Start;
-			p2Start = _p2Start;
-
-			p1Score = _p1Score;
-			p2Score = _p2Score;
-		}
-
-		public void RunGame(out UInt64 p1Wins, out UInt64 p2Wins)
-		{
-			p1Wins = 0;
-			p2Wins = 0;
-
-			int p1Score = 0;
-			int p2Score = 0;
-
-			int p1Index = p1Start - 1;
-			int p2Index = p2Start - 1;
-
-			// Roll 3 sided dice 3 times
-			// 3^3 -> 27 possible outcomes
-			// Will create 27 games from player 1's roll
-				
-
-
-			int p1Movement = 3;
-			p1Index += p1Movement;
-			p1Index %= 10;
-			p1Score += p1Index + 1;
-
-			if (p1Score >= 21)
-				p1Wins++;
-
-			// Will create 27 games from player 2's roll
-			int p2Movement = 3;
-			p2Index += p2Movement;
-			p2Index %= 10;
-			p2Score += p2Index + 1;
-
-			if (p2Score >= 21)
-				p2Wins++;
-		}
-	}
-
 	class Program
 	{
+		public static (int roll, int frequency)[] s_rollCount = { (3, 1), (4, 3), (5, 6), (6, 7), (7, 6), (8, 3), (9, 1) };
+
+		public static (ulong p1Wins, ulong p2Wins) RecursePlayGame(int p1Pos, int p1Score, int p2Pos, int p2Score, bool isPlayer1, ulong universeCount)
+		{
+			ulong p1Wins = 0;
+			ulong p2Wins = 0;
+
+			for (int rollIndex = 0; rollIndex < s_rollCount.Length; ++rollIndex)
+			{
+				ulong frequency = (ulong)s_rollCount[rollIndex].frequency;
+
+				int roll = s_rollCount[rollIndex].roll;
+				int newSpaceIndex = (roll + (isPlayer1 ? p1Pos : p2Pos)) % 10;
+				int newScore = newSpaceIndex + 1 + (isPlayer1 ? p1Score : p2Score);
+
+				ulong identicalUniverseCount = universeCount * frequency;
+
+				if (newScore >= 21)
+				{
+					if (isPlayer1)
+					{
+						// P1 wins in X number of universes!
+						p1Wins += identicalUniverseCount;
+					}
+					else
+					{
+						// P2 wins in X number of universes!
+						p2Wins += identicalUniverseCount;
+					}
+
+					continue;
+				}
+
+				// Otherwise, no one has won this game yet, keep going and pass play back to the other player
+				if (isPlayer1)
+				{
+					var wins = RecursePlayGame(newSpaceIndex, newScore, p2Pos, p2Score, false, identicalUniverseCount);
+					p1Wins += wins.p1Wins;
+					p2Wins += wins.p2Wins;
+				}
+				else
+				{
+					var wins = RecursePlayGame(p1Pos, p1Score, newSpaceIndex, newScore, true, identicalUniverseCount);
+					p1Wins += wins.p1Wins;
+					p2Wins += wins.p2Wins;
+				}
+			}
+
+			return (p1Wins, p2Wins);
+		}
+
 		static void Main(string[] args)
 		{
-			var lines = File.ReadAllLines("test.txt");
+			var lines = File.ReadAllLines("input.txt");
 
 			int p1Start = int.Parse(lines[0].Split(' ')[4]);
 			int p2Start = int.Parse(lines[1].Split(' ')[4]);
@@ -145,10 +123,14 @@ namespace _21_DiracDice
 
 			// Part Two
 			{
-				QuantumDiceGame diceGame = new QuantumDiceGame(p1Start, p2Start, 0, 0);
-				UInt64 p1Wins = 0;
-				UInt64 p2Wins = 0;
-				diceGame.RunGame(out p1Wins, out p2Wins);
+				Console.WriteLine("\nPart Two:");
+
+				var wins = RecursePlayGame(p1Start-1, 0, p2Start-1, 0, true, 1);
+				ulong p1Wins = wins.p1Wins;
+				ulong p2Wins = wins.p2Wins;
+
+				Console.WriteLine("Player 1 wins " + p1Wins + " times");
+				Console.WriteLine("Player 2 wins " + p2Wins + " times");
 			}
 		}
 	}
