@@ -49,9 +49,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "22-ReactorReboot", "22-Reac
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "23-Amphipod", "23-Amphipod\23-Amphipod.csproj", "{94A8BC54-5FDD-4337-A65E-53C9B8C7829A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "24-ArithmeticLogicUnit", "24-ArithmeticLogicUnit\24-ArithmeticLogicUnit.csproj", "{320AF337-0ECF-48DB-A557-ED0A15C65732}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "24-ArithmeticLogicUnit", "24-ArithmeticLogicUnit\24-ArithmeticLogicUnit.csproj", "{320AF337-0ECF-48DB-A557-ED0A15C65732}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "25-SeaCucumber", "25-SeaCucumber\25-SeaCucumber.csproj", "{753EC41E-ADE1-435D-90D4-A1C175EDCD52}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "25-SeaCucumber", "25-SeaCucumber\25-SeaCucumber.csproj", "{753EC41E-ADE1-435D-90D4-A1C175EDCD52}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

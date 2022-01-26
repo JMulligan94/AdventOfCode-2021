@@ -5,15 +5,19 @@ using System.Linq;
 
 namespace _19_BeaconScanner
 {
-	class Point
+	class Point : IEquatable<Point> // IEquatable for Linq's Distinct() function
 	{
 		public int x;
 		public int y;
 		public int z;
 
-		public long SqrMagnitude
+		public long DistanceHash
 		{
-			get { return (x * x) + (y * y) + (z * z); }
+			get 
+			{
+				var (xSqr, ySqr, zSqr) = ((x * x), (y * y), (z * z));
+				return xSqr + ySqr + zSqr;
+			}
 		}
 
 		public Point(int _x, int _y, int _z)
@@ -25,20 +29,25 @@ namespace _19_BeaconScanner
 
 		public override bool Equals(object obj)
 		{
-			return obj is Point coord &&
-				   x == coord.x &&
-				   y == coord.y &&
-				   z == coord.z;
-		}
-
-		public bool IsEquivalent(Point other)
-		{
-			return (x == other.x && y == other.y && z == other.z) || (x == -other.x && y == -other.y && z == -other.z);
+			return obj is Point other 
+				&& Equals(other);
 		}
 
 		public override string ToString()
 		{
 			return $"({x},{y},{z})";
+		}
+
+		public override int GetHashCode()
+		{
+			return HashCode.Combine(x, y, z);
+		}
+
+		public bool Equals(Point other)
+		{
+			return x == other.x &&
+				   y == other.y &&
+				   z == other.z;
 		}
 
 		public static Point operator +(Point a, Point b)
@@ -50,6 +59,7 @@ namespace _19_BeaconScanner
 		{
 			return new Point(b.x - a.x, b.y - a.y, b.z - a.z);
 		}
+
 	}
 
 	class Beacon
@@ -57,13 +67,22 @@ namespace _19_BeaconScanner
 		public int id;
 		Scanner owningScanner;
 		bool is2D;
-		public List<Point> orientatedLocations = new List<Point>();
-		public List<long> sqrDistances = new List<long>();
+		public Point localLocation;
+		public List<long> siblingDistances = new List<long>();
 
-		// Indexer for accessing location orientated to a certain index
-		public Point this[int i]
+		public Point WorldLocation
 		{
-			get { return orientatedLocations[i]; }
+			get
+			{
+				if (is2D)
+				{
+					return Beacon.Rotate_2D(localLocation, owningScanner.worldRotation) + owningScanner.worldCentre;
+				}
+				else
+				{
+					return Beacon.Rotate(localLocation, owningScanner.worldRotation) + owningScanner.worldCentre;
+				}
+			}
 		}
 
 		public Beacon(Scanner _owningScanner, int _id, Point location, bool _is2D = false)
@@ -71,89 +90,89 @@ namespace _19_BeaconScanner
 			owningScanner = _owningScanner;
 			id = _id;
 			is2D = _is2D;
-			if (is2D)
-				GenerateAllOrientations_2D(location, ref orientatedLocations);
-			else
-				GenerateAllOrientations(location, ref orientatedLocations);
+			localLocation = location;
 		}
 
-		public static void GenerateAllOrientations(Point vectorIn, ref List<Point> vectorOut)
+		// All 24 possible rotations of a point in 3D space
+		public static Point Rotate(Point vectorIn, int rotation)
 		{
 			int x = vectorIn.x;
 			int y = vectorIn.y;
 			int z = vectorIn.z;
 
-			// "up" is +y (up)
-			vectorOut.Add(vectorIn);
-			vectorOut.Add(new Point(-z, y, x));
-			vectorOut.Add(new Point(-x, y, -z));
-			vectorOut.Add(new Point(z, y, x));
+			switch (rotation)
+			{
+				// "up" is +y (up)
+				case 0: return vectorIn;
+				case 1: return new Point(-z, y, x);
+				case 2: return new Point(-x, y, -z);
+				case 3: return new Point(z, y, -x);
 
-			// "up" is -y (down)
-			vectorOut.Add(new Point(-x, -y, z));
-			vectorOut.Add(new Point(-z, -y, -x));
-			vectorOut.Add(new Point(x, -y, -z));
-			vectorOut.Add(new Point(z, -y, x));
+				// "up" is -y (down)
+				case 4: return new Point(-x, -y, z);
+				case 5: return new Point(-z, -y, -x);
+				case 6: return new Point(x, -y, -z);
+				case 7: return new Point(z, -y, x);
 
-			// "up" is +x (right)
-			vectorOut.Add(new Point(y, -x, z));
-			vectorOut.Add(new Point(y, -z, x));
-			vectorOut.Add(new Point(y, x, -z));
-			vectorOut.Add(new Point(y, z, x));
+				// "up" is +x (right)
+				case 8: return new Point(y, -x, z);
+				case 9: return new Point(y, -z, -x);
+				case 10: return new Point(y, x, -z);
+				case 11: return new Point(y, z, x);
 
-			// "up" is -x (left)
-			vectorOut.Add(new Point(-y, x, z));
-			vectorOut.Add(new Point(-y, -z, x));
-			vectorOut.Add(new Point(-y, -x, -z));
-			vectorOut.Add(new Point(-y, z, -x));
+				// "up" is -x (left)
+				case 12: return new Point(-y, x, z);
+				case 13: return new Point(-y, -z, x);
+				case 14: return new Point(-y, -x, -z);
+				case 15: return new Point(-y, z, -x);
 
-			// "up" is -z (front)
-			vectorOut.Add(new Point(x, z, -y));
-			vectorOut.Add(new Point(z, -x, -y));
-			vectorOut.Add(new Point(-x, -z, -y));
-			vectorOut.Add(new Point(-z, x, -y));
+				// "up" is -z (front)
+				case 16: return new Point(x, z, -y);
+				case 17: return new Point(z, -x, -y);
+				case 18: return new Point(-x, -z, -y);
+				case 19: return new Point(-z, x, -y);
 
-			// "up" is +z (back)
-			vectorOut.Add(new Point(x, -z, y));
-			vectorOut.Add(new Point(-z, -x, y));
-			vectorOut.Add(new Point(-x, z, y));
-			vectorOut.Add(new Point(z, x, y));
+				// "up" is +z (back)
+				case 20: return new Point(x, -z, y);
+				case 21: return new Point(-z, -x, y);
+				case 22: return new Point(-x, z, y);
+				case 23: return new Point(z, x, y);
+
+				default: return vectorIn;
+			}
 		}
 
-		public static void GenerateAllOrientations_2D(Point vectorIn, ref List<Point> vectorOut)
+		// All 4 possible rotation of a point in 2D space
+		public static Point Rotate_2D(Point vectorIn, int rotation)
 		{
 			int x = vectorIn.x;
 			int y = vectorIn.y;
 			int z = vectorIn.z;
 
-			vectorOut.Add(vectorIn);
-			vectorOut.Add(new Point(y, -x, z));
-			vectorOut.Add(new Point(-x, -y, z));
-			vectorOut.Add(new Point(-y, x, z));
+			switch (rotation)
+			{
+				case 0: return vectorIn;
+				case 1: return new Point(y, -x, z);
+				case 2: return new Point(-x, -y, z);
+				case 3: return new Point(-y, x, z);
+			
+				default: return vectorIn;
+			}
 		}
 
 		public override string ToString()
 		{
-			return $"S({owningScanner.name}) B({id}) {orientatedLocations.First().ToString()}";
+			return $"{{({owningScanner.name}-{id})-{localLocation}}}";
 		}
 	}
-
-	class BeaconOverlap
-	{
-		public Scanner scannerA;
-		public Scanner scannerB;
-		public (int srcIndex, int destIndex) scannerAIndices;
-		public (int srcIndex, int destIndex) scannerBIndices;
-		public long sqrDist;
-	}
-
 	class Scanner
 	{
 		public string name;
 		public bool is2D;
 
+		public Point worldCentre = new Point(0,0,0);
+		public int worldRotation = 0;
 		public List<Beacon> beacons = new List<Beacon>();
-		public long[,] beaconSqrDistances;
 
 		public int NumOrientations
 		{
@@ -171,264 +190,107 @@ namespace _19_BeaconScanner
 			beacons.Add(new Beacon(this, beacons.Count, location, is2D));
 		}
 
-		public void GetBeaconsAtOrientationIndex(int index, ref List<Point> orientations)
-		{
-			foreach (var beacon in beacons)
-			{
-				orientations.Add(beacon[index]);
-			}
-		}
-
-		public void CacheDistancesBetweenBeacons()
-		{
-			Console.WriteLine($"\n  CACHING DISTANCES BETWEEN BEACONS IN SCANNER \"{name}\"");
-			beaconSqrDistances = new long[beacons.Count, beacons.Count];
-			for (int i = 0; i < beacons.Count; ++i)
-			{
-				beacons[i].sqrDistances.Clear();
-				Point locationA = beacons[i].orientatedLocations[0];
-				for (int j = 0; j < beacons.Count; ++j)
-				{
-					if (i == j)
-					{
-						beaconSqrDistances[i, j] = 0;
-						continue;
-					}
-
-					Point locationB = beacons[j].orientatedLocations[0];
-
-					Point relativeDistance = locationB - locationA;
-					long squareDist = ((relativeDistance.x * relativeDistance.x)
-						+ (relativeDistance.y * relativeDistance.y)
-						+ (relativeDistance.z * relativeDistance.z));
-					beaconSqrDistances[i, j] = squareDist;
-					if (beacons[i].sqrDistances.Contains(squareDist))
-					{
-						Console.WriteLine($"   Another sqr distance is already found from beacon {beacons[i]} with distance {squareDist}. This is going to be an issue.");
-					}
-					else
-					{
-						Console.WriteLine($"   {i}->{j} = {squareDist}");
-					}
-					beacons[i].sqrDistances.Add(squareDist);
-
-					int count = 0;
-					foreach(var test in beaconSqrDistances)
-					{
-						if (test == squareDist)
-							count++;
-					}
-
-					if (count > 2)
-					{
-						int k = 0;
-					}
-				}
-				beacons[i].sqrDistances.Sort();
-			}
-		}
-
 		public override string ToString()
 		{
 			return $"--- Scanner {name} ---";
 		}
 
-		internal void Consume(Scanner scanner, Dictionary<Beacon, int> beaconMatches)
+		public void CalculateDistancesBetweenBeacons()
 		{
-			Beacon srcBeaconA = beaconMatches.Keys.ToList()[0];
-			Beacon destBeaconA = beaconMatches.Keys.ToList()[1];
-
-			Point srcBeaconALoc = srcBeaconA.orientatedLocations[0];
-			Point destBeaconALoc = destBeaconA.orientatedLocations[0];
-
-			Point relativePositionA = destBeaconALoc - srcBeaconALoc;
-
-
-			Beacon srcBeaconB = scanner.beacons[beaconMatches[srcBeaconA]];
-			Beacon destBeaconB = scanner.beacons[beaconMatches[destBeaconA]];
-
-			Point srcBeaconBLoc = srcBeaconB.orientatedLocations[0];
-			Point destBeaconBLoc = destBeaconB.orientatedLocations[0];
-
-			Point relativePositionB = destBeaconBLoc - srcBeaconBLoc;
-
-			// Work out orientation
-			bool foundOrientation = false;
-			int correctOrientation = -1;
-
-			List<Point> orientations = new List<Point>();
-			if (is2D)
-				Beacon.GenerateAllOrientations_2D(relativePositionB, ref orientations);
-			else
-				Beacon.GenerateAllOrientations(relativePositionB, ref orientations);
-
-			// How does B have to be rotated to fit A?
-			for (int orientationIndex = 0; orientationIndex < NumOrientations; ++orientationIndex)
+			// Calculate the distances between sibling beacons in a scanner once
+			for (int beaconAIndex = 0; beaconAIndex < beacons.Count - 1; ++beaconAIndex)
 			{
-				if (relativePositionA.Equals(orientations[orientationIndex]))
+				Beacon beaconA = beacons[beaconAIndex];
+				for (int beaconBIndex = beaconAIndex + 1; beaconBIndex < beacons.Count; ++beaconBIndex)
 				{
-					if (!foundOrientation)
-					{
-						correctOrientation = orientationIndex;
-						foundOrientation = true;
-					}
-					else if (orientationIndex != correctOrientation)
-					{
-						Console.WriteLine("Something's gone wrong when calculating the orientation");
-					}
-					break;
+					Beacon beaconB = beacons[beaconBIndex];
+					Point beaconDiff = beaconB.localLocation - beaconA.localLocation;
+					long distance = beaconDiff.DistanceHash;
+					beaconA.siblingDistances.Add(distance);
+					beaconB.siblingDistances.Add(distance);
 				}
 			}
-
-			if (!foundOrientation)
-			{
-				Console.WriteLine("......ERROR! - COULDN'T FIND A VALID ORIENTATION");
-			}
-
-			Console.WriteLine($"\n.....Scanner {scanner.name} fits at orientation {correctOrientation}");
-
-			Point scannerRelativeOffset = srcBeaconB[correctOrientation] - srcBeaconA[0];
-
-			Console.WriteLine($".....Scanner {scanner.name} must be at {scannerRelativeOffset} (relative to scanner 0)");
-
-			Console.WriteLine($"\n......ALL MATCHES:");
-			foreach (var matchingPair in beaconMatches)
-			{
-				Console.WriteLine($"......{matchingPair.Key[0]} -> {scanner.beacons[matchingPair.Value][0]}");
-			}
-
-			for (int beaconIndex = 0; beaconIndex < scanner.beacons.Count; ++beaconIndex)
-			{
-				// Beacon is already known to the composite scanner
-				if (beaconMatches.Values.Contains(beaconIndex))
-				{
-					continue;
-				}
-
-				Beacon otherBeacon = scanner.beacons[beaconIndex];
-
-				// The beacon is not know to the composite scanner - add it now at the correct orientation
-				Point translatedBeaconLocation = scannerRelativeOffset + otherBeacon[correctOrientation];
-
-				Console.WriteLine($"......Adding {otherBeacon} to composite scanner as coord {translatedBeaconLocation}");
-				AddBeacon(translatedBeaconLocation);
-			}
-
-			// Re-calculate beacon distances since new ones have been added
-			CacheDistancesBetweenBeacons();
 		}
 	}
 
 	class Program
 	{
-		private static bool CheckCompositeAgainstScanner(Scanner compositeScanner, Scanner otherScanner, bool is2D)
+		// Using knownScanner, attempt to find the queryScanner's location and rotation
+		private static bool LocateScanner(Scanner knownScanner, Scanner queryScanner, bool is2D)
 		{
-			int minOverlapNeeded = 2;// is2D ? 3 : 12;
+			// for 2D - min overlap of 12 before we consider it to be the same beacon
+			int minOverlapNeeded = is2D ? 3 : 12;
 
-			Dictionary<Beacon, int> foundBeacons = new Dictionary<Beacon, int>();
-			for (int beaconIndexA1 = 0; beaconIndexA1 < compositeScanner.beacons.Count - 1; ++beaconIndexA1)
+			List<(Beacon beaconA, Beacon beaconB)> overlappingBeacons = new List<(Beacon beaconA, Beacon beaconB)>();
+
+			// Compare the distances between sibling beacons for both scanners. 
+			// If we find there are many matches in distances in a beacon pair - its very likely that both are the same beacon
+			//  since beacon distance won't change no matter what rotation or location we're at
+			foreach (Beacon knownBeacon in knownScanner.beacons)
 			{
-				Beacon srcBeaconA = compositeScanner.beacons[beaconIndexA1];
-				for (int beaconIndexA2 = beaconIndexA1+1; beaconIndexA2 < compositeScanner.beacons.Count; ++beaconIndexA2)
+				var knownDistances = knownBeacon.siblingDistances;
+				foreach(Beacon queryBeacon in queryScanner.beacons)
 				{
-					Beacon dstBeaconA = compositeScanner.beacons[beaconIndexA2];
-					bool foundMatch = false;
-					long relDistA = compositeScanner.beaconSqrDistances[beaconIndexA1, beaconIndexA2];
-
-					//Console.WriteLine($"\nFINDING  Comp({beaconIndexA1}) -> Comp({beaconIndexA2})  Dist = {relDistA}");
-
-					for (int beaconIndexB1 = 0; beaconIndexB1 < otherScanner.beacons.Count - 1; ++beaconIndexB1)
+					// How many distances do both have in common?
+					int currentOverlap = 0;
+					foreach (var distance in knownDistances)
 					{
-						for (int beaconIndexB2 = beaconIndexB1+1; beaconIndexB2 < otherScanner.beacons.Count; ++beaconIndexB2)
-						{
-							long relDistB = otherScanner.beaconSqrDistances[beaconIndexB1, beaconIndexB2];
-
-							if (relDistA == relDistB) // Also check inverse direction
-							{
-								Console.WriteLine($"\nFINDING  Comp({beaconIndexA1}) -> Comp({beaconIndexA2})  Dist = {relDistA}");
-
-								Console.WriteLine($"..CHECKING  S{otherScanner.name}({beaconIndexB1})->" +
-								   $"S{otherScanner.name}({beaconIndexB2})  Dist = {relDistB}");
-								Console.WriteLine("....MATCH!");
-								foundMatch = true;
-
-								Console.WriteLine($"....EITHER S{otherScanner.name}({beaconIndexB1}) == Comp({beaconIndexA1})");
-								Console.WriteLine($"....    OR S{otherScanner.name}({beaconIndexB1}) == Comp({beaconIndexA2})");
-
-								Beacon beaconB1 = otherScanner.beacons[beaconIndexB1];
-								Beacon beaconB2 = otherScanner.beacons[beaconIndexB2];
-
-								int srcIndexB = beaconIndexB1;
-								int destIndexB = beaconIndexB2;
-								int srcIsB1Probability = 0;
-								int srcIsB2Probability = 0;
-								foreach (var sqrDist in srcBeaconA.sqrDistances)
-								{
-									if (beaconB1.sqrDistances.Contains(sqrDist))
-										srcIsB1Probability++;
-
-									if (beaconB2.sqrDistances.Contains(sqrDist))
-										srcIsB2Probability++;
-								}
-								
-								//foreach (var sqrDist in dstBeaconA.sqrDistances)
-								//{
-								//	if (beaconB1.sqrDistances.Contains(sqrDist))
-								//		srcIsB1Probability--;
-
-								//	if (beaconB2.sqrDistances.Contains(sqrDist))
-								//		srcIsB2Probability--;
-								//}
-
-								if (srcIsB2Probability > srcIsB1Probability)
-								{
-									srcIndexB = beaconIndexB2;
-									destIndexB = beaconIndexB1;
-								}
-
-								Console.WriteLine($"....  CALC Comp({beaconIndexA1}) == S{otherScanner.name}({srcIndexB})");
-								Console.WriteLine($"....    SO Comp({beaconIndexA2}) == S{otherScanner.name}({destIndexB})");
-								Console.WriteLine($"\n....===Comp {beaconIndexA1}->{beaconIndexA2} == S{otherScanner.name} {srcIndexB}->{destIndexB}===");
-
-								if (!foundBeacons.ContainsKey(srcBeaconA))
-								{
-									foundBeacons.Add(srcBeaconA, srcIndexB);
-								}
-								else if (foundBeacons[srcBeaconA] != srcIndexB)
-								{
-									Console.WriteLine($"\n....ERROR! - There's already a different index stored for Comp({beaconIndexA1})  ({foundBeacons[srcBeaconA]})");
-								}
-
-								if (!foundBeacons.ContainsKey(dstBeaconA))
-								{
-									foundBeacons.Add(dstBeaconA, destIndexB);
-								}
-								else if (foundBeacons[dstBeaconA] != destIndexB)
-								{
-									Console.WriteLine($"\n....ERROR! - There's already a different index stored for Comp({beaconIndexA2})  ({foundBeacons[dstBeaconA]})");
-								}
-
-								//Console.WriteLine($"{srcBeaconA} -> {dstBeaconA}\nmatches distance ({relDistA}) for:\n{otherScanner.beacons[srcIndexB]} -> {otherScanner.beacons[destIndexB]}\n");
-
-								break;
-							}
-						}
-						if (foundMatch)
-							break;
+						if (queryBeacon.siblingDistances.Contains(distance))
+							currentOverlap++;
 					}
 
-					if (!foundMatch)
+					if (currentOverlap >= (minOverlapNeeded - 1))
 					{
-						//Console.WriteLine($"NO MATCH FOUND FOR Comp({beaconIndexA1}) -> Comp({beaconIndexA2})");
+						// Very likely to be the same beacon - just at different locations/rotations
+						Console.WriteLine($"{knownBeacon}->{queryBeacon} => {currentOverlap}");
+						overlappingBeacons.Add((knownBeacon, queryBeacon));
+						break;
 					}
 				}
 			}
 
-			if (foundBeacons.Count >= minOverlapNeeded)
+			// If we found enough beacons that can be potentially paired up, we can start calculating the location/rotation of the unknown scanner
+			if (overlappingBeacons.Count >= minOverlapNeeded)
 			{
-				// Can stop checking scanner B and the composite scanner can CONSUME it and its beacons using this orientation
-				Console.WriteLine($"Scanner {otherScanner.name} is being consumed");
-				compositeScanner.Consume(otherScanner, foundBeacons);
+				// Get the relative distance between the first two matching beacons in the located scanner
+				Beacon srcBeaconA = overlappingBeacons[0].beaconA;
+				Beacon destBeaconA = overlappingBeacons[1].beaconA;
+				Point relDistanceA = destBeaconA.WorldLocation - srcBeaconA.WorldLocation;
+
+				// Compare to the relative distance between the first two matching beacons in the unknown scanner
+				Beacon srcBeaconB = overlappingBeacons[0].beaconB;
+				Beacon destBeaconB = overlappingBeacons[1].beaconB;
+				Point relDistanceB = destBeaconB.WorldLocation - srcBeaconB.WorldLocation;
+
+				// Find orientation and then translation
+				int correctRotation = -1;
+				
+				// How do we have to rotate the relative distance B to equal the relative distance A
+				for (int rotation = 0; rotation < knownScanner.NumOrientations; ++rotation)
+				{
+					// Rotate distance by an amount
+					Point rotatedDistanceB = is2D ? 
+						Beacon.Rotate_2D(relDistanceB, rotation) 
+						: Beacon.Rotate(relDistanceB, rotation);
+
+					if (rotatedDistanceB.Equals(relDistanceA))
+					{
+						// Rotation found! Both relative distances are now the same!
+						correctRotation = rotation;
+						break;
+					}
+				}
+				
+				if (correctRotation == -1) // ERROR - No rotation found
+					return false;
+
+				// Calculate world centre in relation to original located scanner using the rotation that was just calculated
+				queryScanner.worldCentre = is2D ?
+					Beacon.Rotate_2D(srcBeaconB.WorldLocation, correctRotation) - srcBeaconA.WorldLocation
+					: Beacon.Rotate(srcBeaconB.WorldLocation, correctRotation) - srcBeaconA.WorldLocation;
+
+				queryScanner.worldRotation = correctRotation;
+
 				return true;
 			}
 
@@ -442,7 +304,8 @@ namespace _19_BeaconScanner
 			var lines = File.ReadAllLines(inputFile);
 			var is2D = inputFile == "testA.txt";
 
-			List<Scanner> scanners = new List<Scanner>();
+			// Parse in input file creating a list of "unknown" scanners and the list of beacons
+			List<Scanner> unknownScanners = new List<Scanner>();
 			bool newScannerInfo = true;
 			Scanner currentScanner = null;
 			foreach (var line in lines)
@@ -453,7 +316,7 @@ namespace _19_BeaconScanner
 					currentScanner = new Scanner(idLineTokens[2], is2D);
 					newScannerInfo = false;
 
-					scanners.Add(currentScanner);
+					unknownScanners.Add(currentScanner);
 					continue;
 				}
 				if (line == "")
@@ -470,37 +333,93 @@ namespace _19_BeaconScanner
 						currentScanner.AddBeacon(new Point(int.Parse(tokens[0]), int.Parse(tokens[1]), int.Parse(tokens[2])));
 				}
 			}
-			
-			foreach (Scanner scanner in scanners)
-				scanner.CacheDistancesBetweenBeacons();
 
-			Scanner compositeScanner = new Scanner("Composite", is2D);
+			// Calculate the distance between each set of beacons for each of the scanners
+			foreach (Scanner scanner in unknownScanners)
+				scanner.CalculateDistancesBetweenBeacons();
 
-			Queue<Scanner> scannersToCheck = new Queue<Scanner>(scanners);
-			Scanner startScanner = scannersToCheck.Dequeue();
+			// A queue of unknown scanners - once this is empty, all should have been located
+			Queue<Scanner> unknownScannersQueue = new Queue<Scanner>(unknownScanners);
 
-			List<Point> startBeaconLocations = new List<Point>();
-			startScanner.GetBeaconsAtOrientationIndex(0, ref startBeaconLocations);
-			foreach (var startBeaconLocation in startBeaconLocations)
-				compositeScanner.AddBeacon(startBeaconLocation);
+			// Start by taking the first one, we'll say we've located this with rotation 0 and centre point 0,0,0
+			// This will be used as the absolute origin in position and rotation for all other scanners
+			Scanner startScanner = unknownScannersQueue.Dequeue();
 
-			compositeScanner.CacheDistancesBetweenBeacons();
+			List<Scanner> locatedScanners = new List<Scanner>();
+			startScanner.worldCentre = new Point(0, 0, 0);
+			startScanner.worldRotation = 0;
+			locatedScanners.Add(startScanner);
 
-			Console.WriteLine("\n\n=== Checking for overlaps ===");
+			unknownScanners.Remove(startScanner);
 
-			while (scannersToCheck.Count > 0)
+			// Until all scanners have been located...
+			while (unknownScannersQueue.Count > 0)
 			{
-				Scanner scannerToCheck = scannersToCheck.Dequeue();
-				
-				if(!CheckCompositeAgainstScanner(compositeScanner, scannerToCheck, is2D))
+				Scanner unknownScanner = unknownScannersQueue.Dequeue();
+				bool foundScanner = false;
+
+				// Try to use each scanner we DO know the location and rotation of to find more scanner locations
+				foreach (Scanner locatedScanner in locatedScanners)
 				{
-					// No overlap found, add it back to the bottom of the queue
-					scannersToCheck.Enqueue(scannerToCheck);
+					// Try to locate the unknown scanner using this known one
+					if (LocateScanner(locatedScanner, unknownScanner, is2D))
+					{
+						// Found the scanner relative to a previously located one - add to located scanners list to help us find more unknown scanners
+						Console.WriteLine($"===Found Scanner {unknownScanner.name} using Scanner {locatedScanner.name} - calculated centre of {unknownScanner.worldCentre} and rotation {unknownScanner.worldRotation}===\n");
+						
+						foundScanner = true;
+
+						locatedScanners.Add(unknownScanner);
+						unknownScanners.Remove(unknownScanner);
+
+						break;
+					}
+				}
+
+				if (!foundScanner)
+				{
+					// Couldn't find overlap with any currently located scanners
+					// Add it back to the bottom of the queue to try again later when more have been located
+					unknownScannersQueue.Enqueue(unknownScanner);
 				}
 			}
 
-			Console.WriteLine("\nPart One:");
-			Console.WriteLine("Number of unique beacons found is: " + compositeScanner.beacons.Count);
+			List<Point> allBeacons = new List<Point>();
+			foreach (var scanner in locatedScanners)
+			{
+				foreach (var beacon in scanner.beacons)
+				{
+					allBeacons.Add(beacon.WorldLocation);
+				}
+			}
+
+			// Part One
+			{
+				int distinctBeaconCount = allBeacons.Distinct().Count();
+				Console.WriteLine("\nPart One:");
+				Console.WriteLine("Number of unique beacons found is: " + distinctBeaconCount);
+			}
+
+			// Part Two
+			{
+				long largestManhattan = long.MinValue;
+				foreach (var scannerA in locatedScanners)
+				{
+					foreach(var scannerB in locatedScanners)
+					{
+						if (scannerA.name == scannerB.name)
+							continue;
+
+						long manhattanDistance = Math.Abs(scannerA.worldCentre.x - scannerB.worldCentre.x)
+							+ Math.Abs(scannerA.worldCentre.y - scannerB.worldCentre.y)
+							+ Math.Abs(scannerA.worldCentre.z - scannerB.worldCentre.z);
+
+						largestManhattan = Math.Max(manhattanDistance, largestManhattan);
+					}
+				}
+				Console.WriteLine("\nPart Two:");
+				Console.WriteLine("Largest Manhattan distance is: " + largestManhattan);
+			}
 		}
 	}
 }
